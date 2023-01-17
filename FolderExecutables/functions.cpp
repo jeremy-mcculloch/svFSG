@@ -28,6 +28,89 @@ std::ostream& operator<<(std::ostream& os, const vector<T>& v) {
     return os; 
 }
 
+void update_time_step_polylayer(vector<vessel>& curr_vessel) {
+    int nts = curr_vessel[0].nts;
+    int sn = curr_vessel[0].sn;
+    double s = sn * curr_vessel[0].dt;
+    double rhoR_s0 = 0, rhoR_s1 = 0; //Total mass at current step
+    double tol = 1E-14; //Convergence tolerance
+    int iter = 0, equil_check = 0, unloaded_check = 0;
+    double delta_sigma, delta_tauw, mb_equil;
+
+    //Get initial guess for radius
+    curr_vessel[0].a_mid[sn] = curr_vessel[0].a_mid[sn - 1];
+    curr_vessel[0].a_act[sn] = curr_vessel[0].a_act[sn - 1];
+    for (int layer = 0; layer < curr_vessel.size(); layer++) {
+        update_kinetics(curr_vessel[layer]);
+    }
+
+    //Find new equilibrium geometry.
+    //std::cout << curr_vessel.a_mid[sn]<< std::endl;
+    equil_check = find_iv_geom_polylayer(curr_vessel);
+
+    //Find real mass density production at the current time step iteratively
+    double mass_check = 0.0;
+    do {
+        iter++;
+        //Value from previous prediction
+        rhoR_s0 = curr_vessel[0].rhoR[sn];
+
+        //Update prediction
+        for (int layer = 0; layer < curr_vessel.size(); layer++) {
+                update_kinetics(curr_vessel[layer]);
+        }   
+        equil_check = find_iv_geom(&curr_vessel);
+        rhoR_s1 = 0;
+        // for (int layer = 0; layer < curr_vessel.size(); layer++) {
+        //         update_kinetics(&curr_vessel[layer]);
+        // }   
+        // curr_vessel.rhoR[sn];
+        mass_check = abs((rhoR_s1 - rhoR_s0) / rhoR_s0);
+    } while (mass_check > tol&& iter < 100);
+
+    //--------------------------------------------------------------------
+    ////For passive configuration calculation
+    //curr_vessel.num_exp_flag = 1;
+    
+    //curr_vessel.T_act = 0.0;
+    //curr_vessel.a_mid[sn] = curr_vessel.a_mid_pas[sn - 1];
+    //equil_check = find_iv_geom(&curr_vessel);
+    //curr_vessel.h_pas[sn] = curr_vessel.h[sn];
+    //curr_vessel.a_pas[sn] = curr_vessel.a[sn];
+    //curr_vessel.a_mid_pas[sn] = curr_vessel.a_mid[sn];
+
+    ////Reset to active config
+    //curr_vessel.T_act = curr_vessel.T_act_h;
+    //curr_vessel.a_mid[sn] = curr_vessel.a_mid[sn - 1];
+    //curr_vessel.a_act[sn] = curr_vessel.a_act[sn - 1];
+    //equil_check = find_iv_geom(&curr_vessel);
+
+    //curr_vessel.num_exp_flag = 0;
+    //--------------------------------------------------------------------
+
+    ////Find current mechanobiological perturbation
+
+
+    // delta_sigma = (curr_vessel.sigma_inv / curr_vessel.sigma_inv_h) - 1;
+    // delta_tauw = (curr_vessel.bar_tauw / curr_vessel.bar_tauw_h) - 1;
+
+    // mb_equil = 1 + curr_vessel.K_sigma_p_alpha_h[2] * delta_sigma -
+    //                curr_vessel.K_tauw_p_alpha_h[2] * delta_tauw;
+
+    //Print current state
+    // printf("%s %f %s %f %s %f %s %f\n", "Time:", s, "a: ", curr_vessel.a[sn], 
+
+    //       "h:", curr_vessel.h[sn], "mb_equil:", mb_equil);
+    //printf("%s %f\n", "Delta_sigma:", delta_sigma);
+    //printf("%s %f\n", "sigma_inv:", curr_vessel.sigma_inv);
+    //printf("%s %f\n", "sigma_inv_h:", curr_vessel.sigma_inv_h);
+
+    //printf("%s %f\n", "Delta_sigma:", delta_sigma);
+    //printf("%s %f\n", "delta_tauw:", curr_vessel.bar_tauw);
+    //printf("%s %f\n", "delta_tauw_h:", curr_vessel.bar_tauw_h);
+    //fflush(stdout);
+
+}
 void update_time_step(vessel& curr_vessel) {
     //Solves equilibrium equations at the current time point and updates kinetic variables
     //Find current time step
@@ -662,6 +745,56 @@ int tf_obj_f(const gsl_vector* x, void* curr_vessel, gsl_vector* f) {
     return GSL_SUCCESS;
 
 }
+int find_iv_geom_polylayer(vector<vessel>& curr_vessel) {
+    //Finds the loaded conifiguration for a given pressure and axial stretch
+
+    int status;
+    int iter = 0;
+    int max_iter = 10000;
+
+    int sn = curr_vessel[0].sn;
+
+    const gsl_root_fsolver_type* T = gsl_root_fsolver_brent;
+    gsl_root_fsolver* s = gsl_root_fsolver_alloc(T);
+    gsl_function f = { &iv_obj_f_polylayer, &curr_vessel};
+
+    //Set search range for new mid radius
+    double a_mid_act, a_mid_high, a_mid_low;
+    a_mid_low = 0.90 * curr_vessel[0].a_mid[sn];
+    a_mid_high = 1.1 * curr_vessel[0].a_mid[sn];
+
+    gsl_root_fsolver_set(s, &f, a_mid_low, a_mid_high);
+
+    //printf("Using %s method \n", gsl_root_fsolver_name(s));
+    //printf("%5s [%9s, %9s] %9s %9s\n", "iter", "lower", "upper", "root", "err (est)");
+
+    a_mid_act = 0.0;
+    do {
+        iter++;
+        status = gsl_root_fsolver_iterate(s);
+        a_mid_act = gsl_root_fsolver_root(s);
+        a_mid_low = gsl_root_fsolver_x_lower(s);
+        a_mid_high = gsl_root_fsolver_x_upper(s);
+        status = gsl_root_test_interval(a_mid_low, a_mid_high, 0, pow(10, -12));
+
+        if (status == GSL_SUCCESS) {
+            //printf("Loaded Config Converged:\n");
+            //printf("%5d [%.7f, %.7f] %.7f %.7fs\n", iter, a_mid_low, a_mid_high, a_mid_act, a_mid_high - a_mid_low);
+        }
+
+        //printf("%5d [%.7f, %.7f] %.7f %.7fs\n", iter, a_mid_low, a_mid_high, a_mid_act, a_mid_high - a_mid_low);
+    } while (status == GSL_CONTINUE && iter < max_iter);
+
+    //if (iter > max_iter-2){
+    //    printf("status = NOT CONVERGED\n");
+    //}
+    //printf("status = %s\n", gsl_strerror(status));
+
+    //int set_iv = iv_obj_f(a_mid_act, curr_vessel);
+    //((struct vessel*) curr_vessel)->a_mid[sn] = a_mid_act;
+
+    return status;
+}
 
 int find_iv_geom(void* curr_vessel) {
     //Finds the loaded conifiguration for a given pressure and axial stretch
@@ -775,6 +908,81 @@ double iv_obj_f(double a_mid_guess, void* curr_vessel) {
     return J;
 }
 
+// Pass a guess for the middle radius of the inner layer, a list of vessels representing the different layers, and the number of layers 
+double iv_obj_f_polylayer(double a_mid_guess_inner, void *input_vessel) {
+    vector<vessel>& curr_vessel = (vector<vessel> &) input_vessel;
+    //Finds the difference in the theoretical stress from Laplace for deformed mixture
+    //from the stress calculated from the mixture equations
+    int n_layers = curr_vessel.size();
+    int sn = curr_vessel[0].sn;
+    double a = 0.0, h = 0.0, lambda_t = 0.0, lambda_z = 0.0, J_s = 1.0, a_mid = 0.0;
+    double mu = 0.0;
+    double pa_calc = 0.0;
+    double fz_total = 0.0, h_total = 0.0; bool equil_check = !(sn > 0 || curr_vessel[0].num_exp_flag == 1);
+    for (int layer = 0; layer < n_layers; layer ++) {
+        lambda_z = curr_vessel[layer].lambda_z_curr;
+
+        if (!equil_check) J_s = curr_vessel[layer].rhoR[sn] / curr_vessel[layer].rho[sn];
+
+        if (layer == 0) {
+            lambda_t = a_mid_guess_inner / curr_vessel[0].a_mid_h;
+            a_mid = a_mid_guess_inner;
+        } else {
+            double h_h = curr_vessel[layer].h_h;
+            double a_h = curr_vessel[layer].a_h;
+            // want to solve the equation A lambdat^2 + B lambdat + C = 0
+            double A = a_h + h_h / 2;
+            double B = -(a + h);
+            double C = -h_h / 2 * J_s / lambda_z;
+            lambda_t = -B / 2 + sqrt(B * B / 4 - C);
+            a_mid = lambda_t * (a_h + h_h / 2);
+        }
+
+        h = J_s / (lambda_t * lambda_z) * curr_vessel[layer].h_h;
+        a = a_mid - h / 2;
+        //Update vessel geometry for calculation of next time step
+        curr_vessel[layer].a_mid[sn] = a_mid;
+        curr_vessel[layer].a[sn] = a;
+        curr_vessel[layer].h[sn] = h;
+        curr_vessel[layer].lambda_z_curr = lambda_z;
+        if (equil_check) {
+             curr_vessel[layer].a_act[sn] = a;
+             curr_vessel[layer].lambda_th_curr = 1.0;
+        } else {
+             curr_vessel[layer].lambda_th_curr = lambda_t;
+        }
+        //Update WSS from Q Flow
+        // If not the inner most layer, copy wall shear stress from inner most layer
+        if (!equil_check && curr_vessel[layer].wss_calc_flag > 0) {
+            if (layer == 0) {
+                mu = get_app_visc(&curr_vessel[0], sn);
+                curr_vessel[layer].bar_tauw = 4 * mu * curr_vessel[layer].Q / (3.14159265 * pow(a * 100, 3));
+            } else { 
+                curr_vessel[layer].bar_tauw = curr_vessel[0].bar_tauw;
+            }
+        }
+        update_sigma(&curr_vessel[layer]);
+        pa_calc += h * curr_vessel[layer].sigma[1];
+        curr_vessel[layer].f = M_PI * h * (2 * a + h) * curr_vessel[layer].sigma[2];
+        fz_total += curr_vessel[layer].f;
+        h_total += h;
+    }
+
+    //Calculating sigma_t_th from pressure P
+    double pa_th = curr_vessel[0].P * curr_vessel[0].a[sn];
+
+    // Compute sigma invariant
+    double a_inner = curr_vessel[0].a[sn];
+    double P = curr_vessel[0].P; 
+    double sigma_inv = M_PI * P * a_inner / h_total + fz_total / (M_PI * h_total * (a_inner + h_total));
+    
+    for (int layer = 0; layer < n_layers; layer++) { 
+        curr_vessel[layer].sigma_inv = sigma_inv; 
+    }
+    double J = pa_calc - pa_th;
+
+    return J;
+}
 void update_kinetics(vessel& curr_vessel) {
 //    std cout << "Begin update kinetics ----------------------------" << std::endl;
 

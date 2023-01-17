@@ -10,7 +10,7 @@
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_roots.h>
 #include <gsl/gsl_multiroots.h>
-
+#include "json.hpp"
 #include "vessel.h"
 #include "functions.h"
 
