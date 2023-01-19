@@ -1,8 +1,8 @@
 {
-   "vessel_name": "",
+   "vessel_name": "Lamb_Thoracic_IVC",
    "in_vivo_z_stretch": 1.0,
-   "pressure": 670, 
-   "flow_rate": 1.02, 
+   "pressure": 650, 
+   "flow_rate": 20, 
    "layers": [
       {
          "inner_radius_homeostatic": 8.573,
