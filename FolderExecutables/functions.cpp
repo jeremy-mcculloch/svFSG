@@ -1953,7 +1953,10 @@ void update_sigma(void* curr_layer) {
                 F_alpha_ntau_s = F_s[dir] * curr_lay->constituents[alpha].G_alpha_h[dir];
                 hat_sigma_2[dir] = F_alpha_ntau_s * hat_S_alpha * F_alpha_ntau_s / J_s;
                 hat_Cbar_2[dir] = F_alpha_ntau_s * F_alpha_ntau_s * hat_dSdC_alpha * F_alpha_ntau_s * F_alpha_ntau_s / J_s;
-
+                if (sn == 0) {
+                    printf("constituent: %i, dir: %i, sigma: %f\n", alpha, dir, curr_lay->constituents[alpha].rhoR_alpha[sn] /
+                            curr_lay->constituents[alpha].rho_hat_alpha_h * hat_sigma_2[dir]);
+                }
                 sigma[dir] += curr_lay->constituents[alpha].rhoR_alpha[sn] /
                     curr_lay->constituents[alpha].rho_hat_alpha_h * hat_sigma_2[dir];
                 Cbar[dir] += curr_lay->constituents[alpha].rhoR_alpha[sn] /
