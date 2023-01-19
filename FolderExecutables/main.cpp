@@ -13,6 +13,9 @@
 #include <gsl/gsl_multiroots.h>
 
 #include "vessel.h"
+#include "layer.h"
+#include "json.hpp"
+#include "constituent.h"
 #include "functions.h"
 
 using std::string;
@@ -78,11 +81,12 @@ int main( int ac, char* av[] ) {
         std::cout << "Filename suffix: " << name_arg << "\n";
 
         //Initialize the reference vessel for the simulation
-        string native_file = "../FolderVesselConfigurationFiles/Native_in_" + name_arg;
+        string native_file = "../FolderVesselConfigurationFiles/JSON_in_" + name_arg + ".json";
         std::cout << "Filename native: " << native_file << "\n";
 
         vessel native_vessel;
-        native_vessel.initializeNative(native_file,num_days,step_size);
+        //native_vessel.initializeNative(native_file,num_days,step_size);
+        native_vessel.initializeJSON(native_file,num_days,step_size);
 
         if (!vm.count("step")) {
             step_arg = int( num_days / step_size );
@@ -97,7 +101,7 @@ int main( int ac, char* av[] ) {
         if (vm.count("wss")){
             native_vessel.bar_tauw = tauw_arg;
             mu = get_app_visc(&native_vessel, 0);
-            native_vessel.Q = native_vessel.bar_tauw / (4 * mu / (3.14159265 * pow(native_vessel.a_h*100, 3)));
+            native_vessel.Q = native_vessel.bar_tauw / (4 * mu / (3.14159265 * pow(native_vessel.layers[0].a_h*100, 3)));
             std::cout << "Updated WSS: " << tauw_arg << std::endl;
         }
 
@@ -110,6 +114,8 @@ int main( int ac, char* av[] ) {
         //------------------------------------------------------------------------
 
         //For elastin degradation 
+        // TODO uncomment
+        /*
         double Q_p1, s;
         int L_Z = 2;
         double s_gnd_off = 30, epsilonR_gnd_min = 0.00, k_gnd_h = 0.1;
@@ -137,6 +143,9 @@ int main( int ac, char* av[] ) {
 
         }
 
+        */ 
+
+
         //PD Tests
         //double P_low = 0.0 * 133.33;
         //double P_high = 10.0 * 133.33;
@@ -145,8 +154,8 @@ int main( int ac, char* av[] ) {
         //int pd_test_count = 0;
         //vector<int> pd_test_ind = { 1, 11, 91, 151 }; //, 91, 151
 
-                            printf("%s %f %s %f %s %f %s %f %s %f %s %f\n", "Time:", native_vessel.s, "a: ", native_vessel.a[native_vessel.sn], "h:", native_vessel.h[native_vessel.sn],
-                   "Cbar_r:", native_vessel.Cbar[0], "Cbar_t:", native_vessel.Cbar[1], "Cbar_z:", native_vessel.Cbar[2]);
+//                            printf("%s %f %s %f %s %f %s %f %s %f %s %f\n", "Time:", native_vessel.s, "a: ", native_vessel.a[native_vessel.sn], "h:", native_vessel.h[native_vessel.sn],
+//                   "Cbar_r:", native_vessel.Cbar[0], "Cbar_t:", native_vessel.Cbar[1], "Cbar_z:", native_vessel.Cbar[2]);
 
 
         if(!restart_arg)
@@ -159,10 +168,9 @@ int main( int ac, char* av[] ) {
 
             //Write initial state to file
             int sn = 0;
-            native_vessel.printNativeOutputs();
+//            native_vessel.printNativeOutputs();
             //Simulate number of timesteps
-            //native_vessel.nts = step_arg;
-
+            //native_vessel.nts = step_arg; 
             //Set flag for WSS calculation
             if (!(vm.count("wss"))){
                 native_vessel.wss_calc_flag = 1;
@@ -172,27 +180,35 @@ int main( int ac, char* av[] ) {
             for (int sn = 1; sn < std::min(step_arg,native_vessel.nts); sn++) {
                 
                 if(gnr_arg){
+
                     native_vessel.s = native_vessel.dt * sn;
                     native_vessel.sn = sn;
-
                     update_time_step(native_vessel);
-
-                    printf("%s %f %s %f %s %f %s %f %s %f %s %f\n", "Time:", native_vessel.s, "a: ", native_vessel.a[native_vessel.sn], "h:", native_vessel.h[native_vessel.sn],
-                   "Cbar_r:", native_vessel.Cbar[0], "Cbar_t:", native_vessel.Cbar[1], "Cbar_z:", native_vessel.Cbar[2]);
-
+                    printf("%s %f\n", "Time:", native_vessel.s);
+                    for (int layer = 0; layer < native_vessel.layers.size(); layer++) {
+                        printf("%s %i %s %f %s %f %s %f %s %f %s %f","Layer #:", layer, "a: ", native_vessel.layers[layer].a[native_vessel.sn], "h:", native_vessel.layers[layer].h[native_vessel.sn], 
+                            "Cbar_r:", native_vessel.layers[layer].Cbar[0], "Cbar_t:", native_vessel.layers[layer].Cbar[1], "Cbar_z:", native_vessel.layers[layer].Cbar[2]);
+                    }
                     printf("%s \n", "---------------------------");
                     fflush(stdout);
 
                     //Store axial stretch history
-                    native_vessel.lambda_z_tau[sn] = native_vessel.lambda_z_curr;
+
+                    // TODO uncomment
+                    for (int i = 0; i < native_vessel.layers.size(); i++) {
+                        native_vessel.layers[i].lambda_z_tau[sn] = native_vessel.layers[i].lambda_z_curr;
+                    }
 
                     //Update previous pressure
                     native_vessel.P_prev = native_vessel.P;
                 }
                 else{
                     //Print current state
-                    printf("%s %f %s %f %s %f %s %f %s %f %s %f\n", "Time:", native_vessel.s, "a: ", native_vessel.a[native_vessel.sn], "h:", native_vessel.h[native_vessel.sn],
-                   "Cbar_r:", native_vessel.Cbar[0], "Cbar_t:", native_vessel.Cbar[1], "Cbar_z:", native_vessel.Cbar[2]);
+                    printf("%s %f\n", "Time:", native_vessel.s);
+                    for (int layer = 0; layer < native_vessel.layers.size(); layer++) {
+                        printf("%s %i %s %f %s %f %s %f %s %f %s %f","Layer #:", layer, "a: ", native_vessel.layers[layer].a[native_vessel.sn], "h:", native_vessel.layers[layer].h[native_vessel.sn], 
+                            "Cbar_r:", native_vessel.layers[layer].Cbar[0], "Cbar_t:", native_vessel.layers[layer].Cbar[1], "Cbar_z:", native_vessel.layers[layer].Cbar[2]);
+                    }
                     printf("%s \n", "xxxxxxxxxxxxxxxxxxxxxxxxxxx");
                     fflush(stdout); 
                 }
@@ -206,11 +222,11 @@ int main( int ac, char* av[] ) {
                 //}
 
                 //Write full model outputs
-                native_vessel.printNativeOutputs();
+//                native_vessel.printNativeOutputs();
             }
 
             //Print vessel to file
-            native_vessel.save();
+  //          native_vessel.save();
 
             //Long-term equilibrated solution
 		    //int sn = native_vessel.nts - 1;
@@ -233,7 +249,7 @@ int main( int ac, char* av[] ) {
             native_vessel.Exp_out.open(native_vessel.exp_name, std::ofstream::out | std::ofstream::app);
 
             //Read vessel from file
-            native_vessel.load();
+//            native_vessel.load();
             //Load pressure and WSS
             if (vm.count("pressure")){
                 native_vessel.P = P_arg;
@@ -241,13 +257,13 @@ int main( int ac, char* av[] ) {
             if (vm.count("wss")){
                 native_vessel.bar_tauw = tauw_arg;
                 mu = get_app_visc(&native_vessel, native_vessel.sn);
-                native_vessel.Q = native_vessel.bar_tauw / (4 * mu / (3.14159265 * pow(native_vessel.a[native_vessel.sn]*100, 3)));
+                native_vessel.Q = native_vessel.bar_tauw / (4 * mu / (3.14159265 * pow(native_vessel.layers[0].a[native_vessel.sn]*100, 3)));
             }
 
             if (native_vessel.sn == 0){
                 //Write initial state to file
                 int sn = 0;
-                native_vessel.printNativeOutputs();
+//                native_vessel.printNativeOutputs();
             }
 
             if (!(vm.count("wss"))){
@@ -266,7 +282,9 @@ int main( int ac, char* av[] ) {
                     printf("%s \n", "---------------------------");
                     fflush(stdout);
                     //Store axial stretch history
-                    native_vessel.lambda_z_tau[sn] = native_vessel.lambda_z_curr;
+                    for (int i = 0; i < native_vessel.layers.size(); i++) {
+                        native_vessel.layers[i].lambda_z_tau[sn] = native_vessel.layers[i].lambda_z_curr;
+                    }
                     native_vessel.P_prev = native_vessel.P;
                 }
                 else{
@@ -281,12 +299,12 @@ int main( int ac, char* av[] ) {
                 //}
 
                 //Write full model outputs
-                native_vessel.printNativeOutputs();
+//                native_vessel.printNativeOutputs();
 
             }
 
             //Print vessel to file
-            native_vessel.save();
+//            native_vessel.save();
 
             //Long-term equilibrated solution
 		    //int sn = native_vessel.nts - 1;

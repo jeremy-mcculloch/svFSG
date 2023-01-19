@@ -2,7 +2,7 @@ CC = g++ -std=c++11
 CFLAGS = -fpic
 LDFLAGS=
 LDLIBS = -lgsl -lgslcblas -lm -lboost_program_options -D_GLIBCXX_USE_CXX11_ABI=0
-SOURCES= vessel.cpp matfun.cpp functions.cpp main_function.cpp 
+SOURCES= vessel.cpp matfun.cpp functions.cpp main_function.cpp layer.cpp constituent.cpp 
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=gnr_function
 
