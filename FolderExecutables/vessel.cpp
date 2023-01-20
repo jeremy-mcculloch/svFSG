@@ -111,10 +111,7 @@ void vessel::initializeJSON(string json_name, double n_days_inp, double dt_inp) 
         layers[layer].parent_vessel = this;
     }
     
-    double a_h = layers[0].a_h; 
-    mu = get_app_visc(this, sn);
-    bar_tauw_h = 4*mu*Q_h/(3.14159265*pow(a_h*100, 3));
-    bar_tauw = bar_tauw_h;    
+        
 
     // int equil_check = 0;
     // int num_act_incr = 10;
@@ -126,8 +123,17 @@ void vessel::initializeJSON(string json_name, double n_days_inp, double dt_inp) 
     // num_exp_flag = 0;
 
 
+    int equil_check = find_iv_geom(this);
+    //printf("%s %f %s %f\n", "act inner radius: ", a[0], "act thickness: ", h[0]);
+    //fflush(stdout);
+
+    
     //Set reference values
     for (int layer = 0; layer < layers.size(); layer ++) {
+        //Assign in vivo (active geometry parameters)
+        layers[layer].h_h = layers[layer].h[0];
+        layers[layer].a_h = layers[layer].a[0];
+        layers[layer].a_mid_h = layers[layer].a_mid[0];
 
         //Update stress to in vivo stress for homeostatic stress calc
         update_sigma(&layers[layer]);
@@ -136,6 +142,11 @@ void vessel::initializeJSON(string json_name, double n_days_inp, double dt_inp) 
 
 
     }
+
+    double a_h = layers[0].a_h; 
+    mu = get_app_visc(this, sn);
+    bar_tauw_h = 4*mu*Q_h/(3.14159265*pow(a_h*100, 3));
+    bar_tauw = bar_tauw_h;
 
 }
 

@@ -547,7 +547,7 @@ void update_sigma_handshake(void* curr_vessel) {
 
                 for(int i = 0; i<3; i++){
                     for(int j = 0; j<3; j++){
-                        for(int k = 0; k<3; k++){
+
                             for(int l = 0; l<3; l++){
                                 hat_CC_2[i][j][k][l] = hat_CC_0[i][j][k][l];
                             }
@@ -1521,7 +1521,6 @@ void update_kinetics(layer& curr_layer) {
     }
     curr_layer.rhoR[sn] = rhoR_s;
     curr_layer.rho[sn] = rhoR_s / J_s;
-
 }
 
 int find_iv_geom(void* vessel_in) {
@@ -1566,7 +1565,6 @@ int find_iv_geom(void* vessel_in) {
 
         //printf("%5d [%.7f, %.7f] %.7f %.7fs\n", iter, a_mid_low, a_mid_high, a_mid_act, a_mid_high - a_mid_low);
     } while (status == GSL_CONTINUE && iter < max_iter);
-
     //if (iter > max_iter-2){
     //    printf("status = NOT CONVERGED\n");
     //}
@@ -1887,6 +1885,7 @@ void update_sigma(void* curr_layer) {
 
             if (even_n) {
 
+
                 //Find the 2nd intermediate deformation gradient
                 a = curr_lay->a[taun_min];
                 h = curr_lay->h[taun_min];
@@ -1923,7 +1922,9 @@ void update_sigma(void* curr_layer) {
                         / curr_lay->constituents[alpha].rho_hat_alpha_h * dt / 2;
                     Cbar[dir] += (mq_2 * hat_Cbar_2[dir] + mq_0 * hat_Cbar_0[dir])
                         / curr_lay->constituents[alpha].rho_hat_alpha_h * dt / 2;
-             
+
+                        //printf("sigma: %f, %f, %f, %f, %f\n", mq_2, mq_0, hat_sigma_0[dir], hat_sigma_2[dir], sigma[dir], dt, curr_lay->constituents[alpha].rho_hat_alpha_h);
+
                 }
 
                 if (curr_lay->constituents[alpha].alpha_active == 1) {
@@ -1953,10 +1954,6 @@ void update_sigma(void* curr_layer) {
                 F_alpha_ntau_s = F_s[dir] * curr_lay->constituents[alpha].G_alpha_h[dir];
                 hat_sigma_2[dir] = F_alpha_ntau_s * hat_S_alpha * F_alpha_ntau_s / J_s;
                 hat_Cbar_2[dir] = F_alpha_ntau_s * F_alpha_ntau_s * hat_dSdC_alpha * F_alpha_ntau_s * F_alpha_ntau_s / J_s;
-                if (sn == 0) {
-                    printf("constituent: %i, dir: %i, sigma: %f\n", alpha, dir, curr_lay->constituents[alpha].rhoR_alpha[sn] /
-                            curr_lay->constituents[alpha].rho_hat_alpha_h * hat_sigma_2[dir]);
-                }
                 sigma[dir] += curr_lay->constituents[alpha].rhoR_alpha[sn] /
                     curr_lay->constituents[alpha].rho_hat_alpha_h * hat_sigma_2[dir];
                 Cbar[dir] += curr_lay->constituents[alpha].rhoR_alpha[sn] /
@@ -2008,8 +2005,9 @@ void update_sigma(void* curr_layer) {
     //The Lagrange multiplier is the radial stress component
     //subtract from each direction 
     // use boundary condition sigmarr = P * (amidh - ainner) / (aouter - ainner), same as P/2 for single layer
+    int n_layers = curr_lay->parent_vessel->layers.size();
     double inner_radius_h = curr_lay->parent_vessel->layers[0].a_h;
-    double outer_radius_h = curr_lay->parent_vessel->layers[n_alpha - 1].a_h + curr_lay->parent_vessel->layers[n_alpha - 1].h_h;
+    double outer_radius_h = curr_lay->parent_vessel->layers[n_layers - 1].a_h + curr_lay->parent_vessel->layers[n_layers - 1].h_h;
     double a_mid_h = curr_lay->a_mid_h;
     lagrange = sigma[0] + (a_mid_h - inner_radius_h) / (outer_radius_h - inner_radius_h) * curr_lay->parent_vessel->P;
     for (int dir = 0; dir < 3; dir++) {
@@ -2028,9 +2026,9 @@ void update_sigma(void* curr_layer) {
 
         curr_lay->Cbar[dir] = Cbar[dir];
     }
-
     //Save updated active radius
     curr_lay->sigma_inv = sigma[0]+sigma[1]+sigma[2];
+
 
 
 }
@@ -2064,6 +2062,8 @@ vector<double> constitutive(void* curr_constituent, double lambda_alpha_s, int t
         Q2 = curr_const->c_alpha_h[1] * pow(Q1, 2);
         hat_S_alpha = curr_const->c_alpha_h[0] * Q1 * exp(Q2);
         hat_dS_dlambda2_alpha = curr_const->c_alpha_h[0] * exp(Q2) * (1 + 2 * Q2);
+        if (sn == 0) {
+        }
 
     }
     else {

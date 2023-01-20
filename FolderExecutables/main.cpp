@@ -114,36 +114,42 @@ int main( int ac, char* av[] ) {
         //------------------------------------------------------------------------
 
         //For elastin degradation 
-        // TODO uncomment
-        /*
+        
         double Q_p1, s;
         int L_Z = 2;
         double s_gnd_off = 30, epsilonR_gnd_min = 0.00, k_gnd_h = 0.1;
-        for (int sn = 1; sn < native_vessel.nts; sn++) {
-            //Calculate elastin degradation
-            s = sn * native_vessel.dt;
-            Q_p1 = 1.0; // (1 + exp(-k_p1 * zeta_p1)) / (1 + exp(k_p1 * gamma_p_d1 * (s - zeta_p1 * gamma_p_d2)));
-            
-            //Uncomment for elastin damage by section
-            //if(L_Z == 2) {
-	    //  Q_p1 = (s > s_gnd_off) * std::max(((1 - epsilonR_gnd_min) * exp(-k_gnd_h * (s - s_gnd_off)) + epsilonR_gnd_min),0.2)
-            //      + (s <= s_gnd_off) * 1;
-	    // }
+        for (int layer = 0; layer < native_vessel.layers.size(); layer ++) {
+            for (int alpha = 0; alpha < native_vessel.layers[layer].constituents.size(); alpha++ ) {
+                if (native_vessel.layers[layer].constituents[alpha].k_alpha_h <= 0) {
+                    for (int sn = 1; sn < native_vessel.nts; sn++) {
+                        //Calculate elastin degradation
+                        s = sn * native_vessel.dt;
+                        Q_p1 = 1.0; // (1 + exp(-k_p1 * zeta_p1)) / (1 + exp(k_p1 * gamma_p_d1 * (s - zeta_p1 * gamma_p_d2)));
+                        
+                        //Uncomment for elastin damage by section
+                        //if(L_Z == 2) {
+                    //  Q_p1 = (s > s_gnd_off) * std::max(((1 - epsilonR_gnd_min) * exp(-k_gnd_h * (s - s_gnd_off)) + epsilonR_gnd_min),0.2)
+                        //      + (s <= s_gnd_off) * 1;
+                    // }
 
-            //Q_p1 = (s > s_gnd_off) * ((1 - epsilonR_gnd_min) * exp(-k_gnd_h * (s - s_gnd_off)) + epsilonR_gnd_min)
-            //+ (s <= s_gnd_off) * 1;
-            
-            native_vessel.GnR_out.flush();
+                        //Q_p1 = (s > s_gnd_off) * ((1 - epsilonR_gnd_min) * exp(-k_gnd_h * (s - s_gnd_off)) + epsilonR_gnd_min)
+                        //+ (s <= s_gnd_off) * 1;
+                        
+                        native_vessel.GnR_out.flush();
 
-            native_vessel.epsilonR_alpha[0 * native_vessel.nts + sn] = Q_p1 * native_vessel.epsilonR_alpha[0 * native_vessel.nts + 0];
-            //native_vessel.epsilonR_alpha[0 * native_vessel.nts + sn] = Q_p1 * native_vessel.epsilonR_alpha[0 * native_vessel.nts + 0];
+                        native_vessel.layers[layer].constituents[alpha].epsilonR_alpha[sn] = Q_p1 * native_vessel.layers[layer].constituents[alpha].epsilonR_alpha[0];
+                        //native_vessel.epsilonR_alpha[0 * native_vessel.nts + sn] = Q_p1 * native_vessel.epsilonR_alpha[0 * native_vessel.nts + 0];
 
-            native_vessel.rhoR_alpha[0 * native_vessel.nts + sn] = native_vessel.epsilonR_alpha[0 * native_vessel.nts + sn] * 
-                                                                native_vessel.rho_hat_alpha_h[0];
+                        native_vessel.layers[layer].constituents[alpha].rhoR_alpha[sn] = native_vessel.layers[layer].constituents[alpha].epsilonR_alpha[sn] * 
+                                                                            native_vessel.layers[layer].constituents[alpha].rho_hat_alpha_h;
 
+                    }
+                }
+            }
         }
+        
 
-        */ 
+         
 
 
         //PD Tests
@@ -157,6 +163,13 @@ int main( int ac, char* av[] ) {
 //                            printf("%s %f %s %f %s %f %s %f %s %f %s %f\n", "Time:", native_vessel.s, "a: ", native_vessel.a[native_vessel.sn], "h:", native_vessel.h[native_vessel.sn],
 //                   "Cbar_r:", native_vessel.Cbar[0], "Cbar_t:", native_vessel.Cbar[1], "Cbar_z:", native_vessel.Cbar[2]);
 
+        printf("%s %f\n", "Time:", native_vessel.s);
+        for (int layer = 0; layer < native_vessel.layers.size(); layer++) {
+        printf("%s %i %s %f %s %f %s %f %s %f %s %f","Layer #:", layer, "a: ", native_vessel.layers[layer].a[native_vessel.sn], "h:", native_vessel.layers[layer].h[native_vessel.sn], 
+        "Cbar_r:", native_vessel.layers[layer].Cbar[0], "Cbar_t:", native_vessel.layers[layer].Cbar[1], "Cbar_z:", native_vessel.layers[layer].Cbar[2]);
+        }
+        printf("%s \n", "---------------------------");
+        fflush(stdout);
 
         if(!restart_arg)
         {
