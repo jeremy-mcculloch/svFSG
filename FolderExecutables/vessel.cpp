@@ -60,6 +60,30 @@ vessel::vessel() {
     exp_name = "Exp_out";
     hns_name = "HnS_out";
 }
+
+void vessel::printNativeOutputs() {
+    GnR_out << s << "\t";
+    for (int l = 0; l < layers.size(); l ++) {
+        GnR_out << layers[l].a[sn] << "\t" << layers[l].h[sn] << "\t" << layers[l].rhoR[sn] << "\t" << layers[l].rho[sn] << "\t";
+        for (int alpha = 0; alpha < layers[l].constituents.size(); alpha ++) {
+            GnR_out << layers[l].constituents[alpha].rhoR_alpha[sn] << "\t";
+        }
+        
+        for (int i = 0; i < 3; i++){
+            GnR_out << layers[l].sigma[i] << " ";
+        }
+        GnR_out << "\t" << layers[l].sigma_inv << "\t";
+
+    }
+
+    GnR_out << bar_tauw << "\t" << bar_tauw_h << "\t" << P << "\t" << P_h << "\t" << f << "\t" << f_h
+            << "\t" << Q << "\t" << Q_h << "\n";
+    GnR_out.flush();
+
+    return;
+
+}
+
 void vessel::initializeJSON(string json_name, double n_days_inp, double dt_inp) {
     
     //Set native vessel time parameters
@@ -83,7 +107,7 @@ void vessel::initializeJSON(string json_name, double n_days_inp, double dt_inp) 
     P = P_h;
     Q = Q_h;
     P_prev = P_h;     
-//$    f = 0.0;
+    // f = 0.0;
     mb_equil = 0;
     mb_equil_e = 0;
     f_z_e = 0;

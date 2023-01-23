@@ -206,8 +206,6 @@ int main( int ac, char* av[] ) {
                     fflush(stdout);
 
                     //Store axial stretch history
-
-                    // TODO uncomment
                     for (int i = 0; i < native_vessel.layers.size(); i++) {
                         native_vessel.layers[i].lambda_z_tau[sn] = native_vessel.layers[i].lambda_z_curr;
                     }

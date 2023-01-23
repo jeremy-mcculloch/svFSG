@@ -57,6 +57,7 @@ public:
     vessel(); //Default constructor
     //Vessel(string file_name); //File name constructor ***ELS USE DELEGATING CONSTRUCTOR***
     //Vessel(string file_name, string vessel_type); //File name and type constructor ***ELS USE DELEGATING CONSTRUCTOR***
+    void printNativeOutputs();
     void initializeJSON(string json_name, double n_days_inp = 10, double dt_inp = 1);
     //~Vessel() destructor
 
