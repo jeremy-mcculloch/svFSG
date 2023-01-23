@@ -23,6 +23,7 @@ using std::cout;
 using json = nlohmann::json;
 
 layer::layer() { } //Default constructor
+
 void layer::initializeJSON(json& json_in, vessel *parent) { 
     parent_vessel = parent;
     int nts = parent->nts;
@@ -43,10 +44,14 @@ void layer::initializeJSON(json& json_in, vessel *parent) {
 
     // Histories
     a = { 0.0 }, a_mid = { 0.0 }, h = { 0.0 }, A = { 0.0 }, A_mid = { 0.0 }, H = { 0.0 };
+    a_pas = { 0.0 }, h_pas = {0.0}, a_mid_pas = {0.0};
     lambda_z_pre = { 0.0 }, rho = { 0.0 }, rhoR = { 0.0 }, ups_infl_p = { 0.0 }, ups_infl_d = {0.0}, lambda_z_tau = {0.0};
     a.resize(nts);
     a_mid.resize(nts);
     h.resize(nts);
+    a_pas.resize(nts);
+    h_pas.resize(nts);
+    a_mid_pas.resize(nts);
     A.resize(nts);
     A_mid.resize(nts);
     H.resize(nts);

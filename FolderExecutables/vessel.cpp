@@ -111,19 +111,42 @@ void vessel::initializeJSON(string json_name, double n_days_inp, double dt_inp) 
         layers[layer].parent_vessel = this;
     }
     
-        
+    int equil_check = 0; 
+    int num_act_incr = 10;   
+    num_exp_flag = 1;
+    for (int i = 1; i < num_act_incr; i++){
+        for (int layer = 0; layer < layers.size(); layer ++) {
+            for (int alpha = 0; alpha < layers[layer].constituents.size(); alpha++) {
+                layers[layer].constituents[alpha].T_act = layers[layer].constituents[alpha].T_act_h * (1 - static_cast<double>(i) / num_act_incr);
+            }
+        }
+        equil_check = find_iv_geom(this);
 
-    // int equil_check = 0;
-    // int num_act_incr = 10;
-    // num_exp_flag = 1;
-    // for (int i = 1; i < num_act_incr; i++){
-    //     T_act = T_act_h * (1 - static_cast<double>(i) / num_act_incr);
-    //     equil_check = find_iv_geom(this);
-    // }
-    // num_exp_flag = 0;
+    }
+
+    for (int layer = 0; layer < layers.size(); layer ++) {
+        //printf("%s %i %s %f %s %f\n", "layer:", layer, "pas inner radius: ", layers[layer].a[0], "pas thickness: ", layers[layer].h[0]);
+        //fflush(stdout);
+
+        // Save resulting geometry as passive geometry
+        layers[layer].h_pas[0] = layers[layer].h[0];
+        layers[layer].a_pas[0] = layers[layer].a[0];
+        layers[layer].a_mid_pas[0] = layers[layer].a_mid[0];
+
+        //Reinitialize to input geometry parameters for solving
+        layers[layer].a[0] = layers[layer].a_h;
+        layers[layer].h[0] = layers[layer].h_h;
+        layers[layer].a_mid[0] = layers[layer].a_mid_h;
+        for (int alpha = 0; alpha < layers[layer].constituents.size(); alpha++) {
+            layers[layer].constituents[alpha].T_act = layers[layer].constituents[alpha].T_act_h;
+        }
+        layers[layer].lambda_th_curr = 1.0;
+        layers[layer].lambda_z_curr = 1.0;
+    }
+    num_exp_flag = 0;
 
 
-    int equil_check = find_iv_geom(this);
+    equil_check = find_iv_geom(this);
     //printf("%s %f %s %f\n", "act inner radius: ", a[0], "act thickness: ", h[0]);
     //fflush(stdout);
 

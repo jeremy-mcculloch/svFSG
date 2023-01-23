@@ -17,6 +17,7 @@ public:
     double a_mid_h; //In vivo midpoint
 
     vector<double> a, a_mid, h; //Evolving in vivo reference
+    vector<double> a_pas, a_mid_pas, h_pas; //Evolving in vivo reference
     vector<double> A, A_mid, H, lambda_z_pre; //Evolving traction free
 
     //Reference true mass density
