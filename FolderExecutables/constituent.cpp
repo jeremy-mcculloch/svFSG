@@ -29,19 +29,34 @@ void constituent::initializeJSON(json& json_in, layer* parent_l) {
     // Do not save references to parent yet, do that from vessel.cpp once everything is in the appropriate list
     parent_layer = parent_l;
     int nts = parent_l->parent_vessel->nts;
+    double dt = parent_l->parent_vessel->dt;
     phi_alpha_h = json_in["mass_ratio"];
     string model = json_in["constituent_model"];
+    c_alpha_h = {};
+    g_alpha_h = {};
+    G_alpha_h = {};
     if (model.compare("neohookean") == 0) {
-        c_alpha_h = {json_in["c1"]};
-        g_alpha_h = 0.0;
+        evaluate_expr(json_in["c1"], c_alpha_h, dt, nts);
+        g_alpha_h = {0.0};
+        g_alpha_h.resize(nts);
         eta_alpha_h = -1.0;
-        G_alpha_h = {json_in["prestretch_r"], json_in["prestretch_th"], json_in["prestretch_z"] };
+        evaluate_expr(json_in["prestretch_r"], G_alpha_h, dt, nts);
+        evaluate_expr(json_in["prestretch_th"], G_alpha_h, dt, nts);
+        evaluate_expr(json_in["prestretch_z"], G_alpha_h, dt, nts);
     } else if (model.compare("fung") == 0) {
-        c_alpha_h = {json_in["c1"], json_in["c2"]};
-        g_alpha_h = json_in["prestretch"];
+        evaluate_expr(json_in["c1"], c_alpha_h, dt, nts);
+        evaluate_expr(json_in["c2"], c_alpha_h, dt, nts);
+        evaluate_expr(json_in["prestretch"], g_alpha_h, dt, nts);
         eta_alpha_h = json_in["orientation"];
         eta_alpha_h = eta_alpha_h * M_PI / 180.0;
-        G_alpha_h = {0.0, g_alpha_h * sin(eta_alpha_h), g_alpha_h * cos(eta_alpha_h)};
+        G_alpha_h = {0.0};
+        G_alpha_h.resize(nts * 3);
+        for (int sn = 0; sn < nts; sn ++) {
+            G_alpha_h[0 * nts + sn] = 0.0;
+            G_alpha_h[1 * nts + sn] = g_alpha_h[sn] * sin(eta_alpha_h);
+            G_alpha_h[2 * nts + sn] = g_alpha_h[sn] * cos(eta_alpha_h);
+
+        }
     }
 
     K_sigma_p_alpha_h = 0; 
@@ -54,6 +69,13 @@ void constituent::initializeJSON(json& json_in, layer* parent_l) {
     if (json_in.contains("stress_mediated_degradation")) K_sigma_d_alpha_h = json_in["stress_mediated_degradation"];
     if (json_in.contains("wss_mediated_production")) K_tauw_p_alpha_h = json_in["wss_mediated_production"];
     if (json_in.contains("wss_mediated_degradation")) K_tauw_p_alpha_h = json_in["wss_mediated_degradation"];
+    if (json_in.contains("inflammation_production")) {
+        K_infl_p_alpha = {};
+        evaluate_expr(json_in["inflammation_production"], K_infl_p_alpha, dt, nts);
+    } else {
+        K_infl_p_alpha = {0.0};
+        K_infl_p_alpha.resize(nts);
+    }
 
     if (json_in["is_active"]) {
         alpha_active = 1;

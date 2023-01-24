@@ -1,11 +1,15 @@
 #ifndef FUNCTIONS
 #define FUNCTIONS
+using json = nlohmann::json;
+#include "json.hpp"
+
 /*
 void update_time_step_explicit(vessel& curr_vessel);
 void update_sigma_handshake(void* curr_vessel);
 void update_time_step_handshake(vessel& curr_vessel, int iter_arg = 0);
 */
 
+void evaluate_expr(json expression_in, vector<double>& result, double dt, int nts);
 int print_state_mr(size_t iter, gsl_multiroot_fsolver* s);
 int ramp_pressure_test(void* curr_vessel, double P_low, double P_high);
 int run_pd_test(vessel& curr_vessel, double P_low, double P_high, double lambda_z_test);

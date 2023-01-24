@@ -15,13 +15,14 @@ public:
     int is_pol; 
 
     //Material properties
-    vector<double> c_alpha_h, G_alpha_h;
-    double eta_alpha_h, g_alpha_h;
+    vector<double> c_alpha_h, G_alpha_h, g_alpha_h;
+    double eta_alpha_h;
     double epsilon_pol_min;
 
     //Mass fractions, referential apparent densities, kinetic quantities
     double phi_alpha_h, rhoR_alpha_h, mR_alpha_h, k_alpha_h;
-    double  K_sigma_p_alpha_h, K_sigma_d_alpha_h, K_tauw_p_alpha_h, K_tauw_d_alpha_h;
+    double K_sigma_p_alpha_h, K_sigma_d_alpha_h, K_tauw_p_alpha_h, K_tauw_d_alpha_h;
+    vector<double> K_infl_p_alpha;
 
     //True mass densities, initial volume fractions
     double rho_hat_alpha_h, epsilonR_alpha_0;

@@ -18,10 +18,46 @@
 #include "constituent.h"
 #include "functions.h"
 #include "matfun.h"
+#include "exprtk.hpp"
 
 using std::string;
 using std::vector;
 using std::cout;
+
+
+void evaluate_expr(json expression_in, vector<double>& result, double dt, int nts) {
+    if (expression_in.is_string()) {
+        auto expression_string = expression_in.get<std::string>();
+
+        typedef exprtk::symbol_table<double> symbol_table_t;
+        typedef exprtk::expression<double>   expression_t;
+        typedef exprtk::parser<double>       parser_t;
+
+        double t;
+
+       symbol_table_t symbol_table;
+       symbol_table.add_variable("t", t);
+       symbol_table.add_constants();
+
+       expression_t expression;
+       expression.register_symbol_table(symbol_table);
+
+       parser_t parser;
+       parser.compile(expression_string,expression);
+
+        for (int sn = 0; sn < nts; sn++) {
+            t = sn * dt;
+            result.push_back(expression.value());
+        }
+    } else if (expression_in.is_number()) {
+        auto val = expression_in.get<double>();
+        for (int sn = 0; sn < nts; sn++) {
+            result.push_back(val);
+        }
+    } else {
+        throw std::invalid_argument("Expression should be a string or a number");
+    }
+}
 
 int print_state_mr(size_t iter, gsl_multiroot_fsolver* s) {
 
@@ -201,6 +237,7 @@ int equil_obj_f(const gsl_vector* x, void* vessel_in, gsl_vector* f) {
 
     //WSS from Pousielle flow, constant viscosity
     int sn = curr_vessel->sn;
+    int nts = curr_vessel->nts;
     double a_store = curr_vessel->layers[0].a[sn];
     curr_vessel->layers[0].a[sn] = a_e_guess;
     double mu = get_app_visc(curr_vessel, sn);
@@ -279,24 +316,24 @@ int equil_obj_f(const gsl_vector* x, void* vessel_in, gsl_vector* f) {
             //Check if constituent is anisotropic
             if (curr_vessel->layers[0].constituents[alpha].eta_alpha_h >= 0) {
                 //Constituent stretch is equal to deposition stretch
-                lambda_alpha_ntau_s = curr_vessel->layers[0].constituents[alpha].g_alpha_h;
+                lambda_alpha_ntau_s = curr_vessel->layers[0].constituents[alpha].g_alpha_h[sn];
 
                 //2nd PK stress hat at equilibrium
-                hat_S_alpha = curr_vessel->layers[0].constituents[alpha].c_alpha_h[0] * (pow(lambda_alpha_ntau_s, 2) - 1) *
-                exp(curr_vessel->layers[0].constituents[alpha].c_alpha_h[1] * pow(pow(lambda_alpha_ntau_s, 2) - 1, 2));
+                hat_S_alpha = curr_vessel->layers[0].constituents[alpha].c_alpha_h[0 * nts + sn] * (pow(lambda_alpha_ntau_s, 2) - 1) *
+                exp(curr_vessel->layers[0].constituents[alpha].c_alpha_h[1 * nts + sn] * pow(pow(lambda_alpha_ntau_s, 2) - 1, 2));
 
                 //Cauchy stress hat at equilibrium
-                hat_sigma_alpha_dir[alpha * dir + dir] = curr_vessel->layers[0].constituents[alpha].G_alpha_h[dir] * 
-                hat_S_alpha * curr_vessel->layers[0].constituents[alpha].G_alpha_h[dir];
+                hat_sigma_alpha_dir[alpha * dir + dir] = curr_vessel->layers[0].constituents[alpha].G_alpha_h[dir * nts + sn] * 
+                hat_S_alpha * curr_vessel->layers[0].constituents[alpha].G_alpha_h[dir * nts + sn];
 
             }
             else {
                 //2nd PK stress hat at equilibrium
-                hat_S_alpha = curr_vessel->layers[0].constituents[alpha].c_alpha_h[0];
+                hat_S_alpha = curr_vessel->layers[0].constituents[alpha].c_alpha_h[0 * nts + sn];
 
                 //Cauchy stress hat at equilibrium
-                hat_sigma_alpha_dir[alpha * dir + dir] = curr_vessel->layers[0].constituents[alpha].G_alpha_h[dir] * hat_S_alpha *
-                curr_vessel->layers[0].constituents[alpha].G_alpha_h[dir];
+                hat_sigma_alpha_dir[alpha * dir + dir] = curr_vessel->layers[0].constituents[alpha].G_alpha_h[dir * nts + sn] * hat_S_alpha *
+                curr_vessel->layers[0].constituents[alpha].G_alpha_h[dir * nts + sn];
 
                 //Check if the consituent is present from the initial time point
                 //Account for volume change and mixture deformation
@@ -569,7 +606,7 @@ void update_kinetics(layer& curr_layer) {
     double delta_tauw = (curr_layer.parent_vessel->bar_tauw / curr_layer.parent_vessel->bar_tauw_h) - 1;
 
     //Initialize pars for looping later
-    double K_sigma_p = 0, K_tauw_p = 0, K_sigma_d = 0, K_tauw_d = 0;
+    double K_sigma_p = 0, K_tauw_p = 0, K_sigma_d = 0, K_tauw_d = 0, K_infl_p = 0;
     double upsilon_p = 0, upsilon_d = 0;
 
     double k_alpha_s = 0;
@@ -614,8 +651,11 @@ void update_kinetics(layer& curr_layer) {
                 K_sigma_d = curr_layer.constituents[alpha].K_sigma_d_alpha_h;
                 K_tauw_d = curr_layer.constituents[alpha].K_tauw_d_alpha_h;
 
+                K_infl_p = curr_layer.constituents[alpha].K_infl_p_alpha[sn];
+
+
                 //Update the stimulus functions for each constituent
-                upsilon_p = 1 + K_sigma_p * delta_sigma - K_tauw_p * delta_tauw;
+                upsilon_p = 1 + K_sigma_p * delta_sigma - K_tauw_p * delta_tauw + K_infl_p;
                 if (upsilon_p < 0.1) {
                     upsilon_p = 0.1;
                 }
@@ -982,7 +1022,7 @@ void update_sigma(void* curr_layer) {
             constitutive_return = constitutive(&curr_lay->constituents[alpha], lambda_alpha_s[alpha], sn);
             hat_S_alpha = constitutive_return[0];
             hat_dSdC_alpha = constitutive_return[1];
-            F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir];
+            F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir * nts + sn];
             hat_sigma_2[dir] = F_alpha_ntau_s * hat_S_alpha * F_alpha_ntau_s / J_s;
 
             hat_Cbar_2[dir] = F_alpha_ntau_s * F_alpha_ntau_s * hat_dSdC_alpha * F_alpha_ntau_s * F_alpha_ntau_s / J_s;
@@ -1024,7 +1064,7 @@ void update_sigma(void* curr_layer) {
                     constitutive_return = constitutive(&curr_lay->constituents[alpha], lambda_alpha_s[alpha], taun);
                     hat_S_alpha = constitutive_return[0];
                     hat_dSdC_alpha = constitutive_return[1];
-                    F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir];
+                    F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir * nts + sn];
                     hat_sigma_1[dir] = F_alpha_ntau_s * hat_S_alpha * F_alpha_ntau_s / J_s;
                     hat_Cbar_1[dir] = F_alpha_ntau_s * F_alpha_ntau_s * hat_dSdC_alpha * F_alpha_ntau_s * F_alpha_ntau_s / J_s;
                 }
@@ -1056,7 +1096,7 @@ void update_sigma(void* curr_layer) {
                     constitutive_return = constitutive(&curr_lay->constituents[alpha], lambda_alpha_s[alpha], taun - 1);
                     hat_S_alpha = constitutive_return[0];
                     hat_dSdC_alpha = constitutive_return[1];
-                    F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir];
+                    F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir * nts + sn];
                     hat_sigma_0[dir] = F_alpha_ntau_s * hat_S_alpha * F_alpha_ntau_s / J_s;
                     hat_Cbar_0[dir] = F_alpha_ntau_s * F_alpha_ntau_s * hat_dSdC_alpha * F_alpha_ntau_s * F_alpha_ntau_s / J_s;
 
@@ -1117,7 +1157,7 @@ void update_sigma(void* curr_layer) {
                     constitutive_return = constitutive(&curr_lay->constituents[alpha], lambda_alpha_s[alpha], taun_min);
                     hat_S_alpha = constitutive_return[0];
                     hat_dSdC_alpha = constitutive_return[1];
-                    F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir];
+                    F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir * nts + sn];
                     hat_sigma_0[dir] = F_alpha_ntau_s * hat_S_alpha * F_alpha_ntau_s / J_s;
                     hat_Cbar_0[dir] = F_alpha_ntau_s * F_alpha_ntau_s * hat_dSdC_alpha * F_alpha_ntau_s * F_alpha_ntau_s / J_s;
 
@@ -1155,7 +1195,7 @@ void update_sigma(void* curr_layer) {
                 constitutive_return = constitutive(&curr_lay->constituents[alpha], lambda_alpha_s[alpha], 0);
                 hat_S_alpha = constitutive_return[0];
                 hat_dSdC_alpha = constitutive_return[1];
-                F_alpha_ntau_s = F_s[dir] * curr_lay->constituents[alpha].G_alpha_h[dir];
+                F_alpha_ntau_s = F_s[dir] * curr_lay->constituents[alpha].G_alpha_h[dir * nts + sn];
                 hat_sigma_2[dir] = F_alpha_ntau_s * hat_S_alpha * F_alpha_ntau_s / J_s;
                 hat_Cbar_2[dir] = F_alpha_ntau_s * F_alpha_ntau_s * hat_dSdC_alpha * F_alpha_ntau_s * F_alpha_ntau_s / J_s;
                 sigma[dir] += curr_lay->constituents[alpha].rhoR_alpha[sn] /
@@ -1257,16 +1297,16 @@ vector<double> constitutive(void* curr_constituent, double lambda_alpha_s, int t
     //Check if anisotropic
     if (curr_const->eta_alpha_h >= 0) {
 
-        lambda_alpha_ntau_s = curr_const->g_alpha_h * lambda_alpha_s / curr_const->lambda_alpha_tau[ts];
+        lambda_alpha_ntau_s = curr_const->g_alpha_h[sn] * lambda_alpha_s / curr_const->lambda_alpha_tau[ts];
 
         if (lambda_alpha_ntau_s < 1) {
             lambda_alpha_ntau_s = 1;
         }
 
         Q1 = (pow(lambda_alpha_ntau_s, 2) - 1);
-        Q2 = curr_const->c_alpha_h[1] * pow(Q1, 2);
-        hat_S_alpha = curr_const->c_alpha_h[0] * Q1 * exp(Q2);
-        hat_dS_dlambda2_alpha = curr_const->c_alpha_h[0] * exp(Q2) * (1 + 2 * Q2);
+        Q2 = curr_const->c_alpha_h[1 * nts + sn] * pow(Q1, 2);
+        hat_S_alpha = curr_const->c_alpha_h[0 * nts + sn] * Q1 * exp(Q2);
+        hat_dS_dlambda2_alpha = curr_const->c_alpha_h[0 * nts + sn] * exp(Q2) * (1 + 2 * Q2);
         if (sn == 0) {
         }
 
@@ -1285,7 +1325,7 @@ vector<double> constitutive(void* curr_constituent, double lambda_alpha_s, int t
             pol_mod = 1;
         }
 
-        hat_S_alpha = pol_mod * curr_const->c_alpha_h[0];
+        hat_S_alpha = pol_mod * curr_const->c_alpha_h[0 * nts + sn];
     }
 
     return_constitutive = { hat_S_alpha , hat_dS_dlambda2_alpha };
