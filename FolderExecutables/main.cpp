@@ -92,18 +92,18 @@ int main( int ac, char* av[] ) {
             step_arg = int( num_days / step_size );
         }
         std::cout << "Steps to simulate: " << step_arg << "\n";
-        if (vm.count("pressure")){
-            native_vessel.P = P_arg;
-            std::cout << "Updated pressure: " << P_arg << std::endl;
-        }
-        //Apparent viscosity vars
-        double mu = 0.0;
-        if (vm.count("wss")){
-            native_vessel.bar_tauw = tauw_arg;
-            mu = get_app_visc(&native_vessel, 0);
-            native_vessel.Q = native_vessel.bar_tauw / (4 * mu / (3.14159265 * pow(native_vessel.layers[0].a_h*100, 3)));
-            std::cout << "Updated WSS: " << tauw_arg << std::endl;
-        }
+        // if (vm.count("pressure")){
+        //     native_vessel.P = P_arg;
+        //     std::cout << "Updated pressure: " << P_arg << std::endl;
+        // }
+        // //Apparent viscosity vars
+        // double mu = 0.0;
+        // if (vm.count("wss")){
+        //     native_vessel.bar_tauw = tauw_arg;
+        //     mu = get_app_visc(&native_vessel, 0);
+        //     native_vessel.Q = native_vessel.bar_tauw / (4 * mu / (3.14159265 * pow(native_vessel.layers[0].a_h*100, 3)));
+        //     std::cout << "Updated WSS: " << tauw_arg << std::endl;
+        // }
 
         //Setup all other output files
         native_vessel.gnr_name = native_vessel.gnr_name + "_" + name_arg;
@@ -205,13 +205,6 @@ int main( int ac, char* av[] ) {
                     printf("%s \n", "---------------------------");
                     fflush(stdout);
 
-                    //Store axial stretch history
-                    for (int i = 0; i < native_vessel.layers.size(); i++) {
-                        native_vessel.layers[i].lambda_z_tau[sn] = native_vessel.layers[i].lambda_z_curr;
-                    }
-
-                    //Update previous pressure
-                    native_vessel.P_prev = native_vessel.P;
                 }
                 else{
                     //Print current state
@@ -262,14 +255,14 @@ int main( int ac, char* av[] ) {
             //Read vessel from file
 //            native_vessel.load();
             //Load pressure and WSS
-            if (vm.count("pressure")){
-                native_vessel.P = P_arg;
-            }
-            if (vm.count("wss")){
-                native_vessel.bar_tauw = tauw_arg;
-                mu = get_app_visc(&native_vessel, native_vessel.sn);
-                native_vessel.Q = native_vessel.bar_tauw / (4 * mu / (3.14159265 * pow(native_vessel.layers[0].a[native_vessel.sn]*100, 3)));
-            }
+            // if (vm.count("pressure")){
+            //     native_vessel.P = P_arg;
+            // }
+            // if (vm.count("wss")){
+            //     native_vessel.bar_tauw = tauw_arg;
+            //     mu = get_app_visc(&native_vessel, native_vessel.sn);
+            //     native_vessel.Q = native_vessel.bar_tauw / (4 * mu / (3.14159265 * pow(native_vessel.layers[0].a[native_vessel.sn]*100, 3)));
+            // }
 
             if (native_vessel.sn == 0){
                 //Write initial state to file
@@ -292,11 +285,6 @@ int main( int ac, char* av[] ) {
                     update_time_step(native_vessel);
                     printf("%s \n", "---------------------------");
                     fflush(stdout);
-                    //Store axial stretch history
-                    for (int i = 0; i < native_vessel.layers.size(); i++) {
-                        native_vessel.layers[i].lambda_z_tau[sn] = native_vessel.layers[i].lambda_z_curr;
-                    }
-                    native_vessel.P_prev = native_vessel.P;
                 }
                 else{
 

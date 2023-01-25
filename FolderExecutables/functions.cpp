@@ -82,11 +82,11 @@ int ramp_pressure_test(void* curr_vessel, double P_low, double P_high) {
     double P_incr = (P_high - P_low) / num_P;
 
 
-    ((struct vessel*) curr_vessel)->P = P_low;
+    ((struct vessel*) curr_vessel)->P[sn] = P_low;
     //std::cout << "Start ramp..." << std::endl;
     for (int i = 0; i < num_P; i++) {
         equil_check = find_iv_geom(curr_vessel);
-        ((struct vessel*) curr_vessel)->P += P_incr;
+        ((struct vessel*) curr_vessel)->P[sn] += P_incr;
     }
     return equil_check;
 }
@@ -94,34 +94,29 @@ int ramp_pressure_test(void* curr_vessel, double P_low, double P_high) {
 int run_pd_test(vessel& curr_vessel, double P_low, double P_high, double lambda_z_test) {
 
     int sn = curr_vessel.sn;
-    vector<double> lambda_z_store = {};
-    for (int l = 0; l < curr_vessel.layers.size(); l++) {
-        lambda_z_store.push_back(curr_vessel.layers[l].lambda_z_curr);
-        curr_vessel.layers[l].lambda_z_curr = lambda_z_test;
-    }
-    double P_store = curr_vessel.P;
+    double lambda_z_store = curr_vessel.lambda_z_tau[sn];
+    double P_store = curr_vessel.P[sn];
 
     int equil_check = 0;
     int num_P = 100;
     double P_incr = (P_high - P_low) / num_P;
-    curr_vessel.P = P_low;
+    curr_vessel.P[sn] = P_low;
+    curr_vessel.lambda_z_tau[sn] = lambda_z_test;
 
     for (int i = 0; i < num_P; i++) {
 
         equil_check = find_iv_geom(&curr_vessel);
-        curr_vessel.Exp_out << curr_vessel.P;
+        curr_vessel.Exp_out << curr_vessel.P[sn];
         for (int l = 0; l < curr_vessel.layers.size(); l++) {
             curr_vessel.Exp_out << "\t" << curr_vessel.layers[l].a_mid[sn];
         }
         curr_vessel.Exp_out << "\n";
-        curr_vessel.P += P_incr;
+        curr_vessel.P[sn] += P_incr;
 
     }
 
-    for (int l = 0; l < curr_vessel.layers.size(); l++) {
-        curr_vessel.layers[l].lambda_z_curr = lambda_z_store[l];
-    }
-    curr_vessel.P = P_store;
+    curr_vessel.lambda_z_tau[sn] = lambda_z_store;
+    curr_vessel.P[sn] = P_store;
 
     return 0;
 }
@@ -132,11 +127,12 @@ int find_equil_geom(void* vessel_in) {
     //homeostatic state
     struct vessel *curr_vessel = (struct vessel *) vessel_in;
     if (curr_vessel->layers.size() > 1) throw std::invalid_argument("Input to find_equil_geom must be single layer vessel");
+    int sn = curr_vessel->sn;
 
     //Loading changes
-    double gamma = curr_vessel->P / curr_vessel->P_h; //Fold change in pressure from homeostatic
-    double epsilon = curr_vessel->Q / curr_vessel->Q_h; //Fold chance in flow from homeostatic
-    double lambda = curr_vessel->layers[0].lambda_z_curr / curr_vessel->lambda_z_h; //Fold change in axial stretch from homeostatic
+    double gamma = curr_vessel->P[sn] / curr_vessel->P_h; //Fold change in pressure from homeostatic
+    double epsilon = curr_vessel->Q[sn] / curr_vessel->Q_h; //Fold chance in flow from homeostatic
+    double lambda = curr_vessel->lambda_z_tau[sn] / curr_vessel->lambda_z_h; //Fold change in axial stretch from homeostatic
 
     //Homeostatic geometry
     double a_h = curr_vessel->layers[0].a_h;
@@ -214,6 +210,7 @@ int find_equil_geom(void* vessel_in) {
 
 int equil_obj_f(const gsl_vector* x, void* vessel_in, gsl_vector* f) {
     struct vessel *curr_vessel = (struct vessel *) vessel_in;
+    int sn = curr_vessel->sn;
     //Mechanobiologically equilibrated objective function
     //Unknown input variables
     const double a_e_guess = gsl_vector_get(x, 0);
@@ -232,17 +229,16 @@ int equil_obj_f(const gsl_vector* x, void* vessel_in, gsl_vector* f) {
 
     //Equations for J1
     //Stress values from equilibrium equations
-    double sigma_e_th_lmb = curr_vessel->P * a_e_guess / h_e_guess;
+    double sigma_e_th_lmb = curr_vessel->P[sn] * a_e_guess / h_e_guess;
     double sigma_e_z_lmb = f_z_e_guess / (M_PI * h_e_guess * (2 * a_e_guess + h_e_guess));
 
     //WSS from Pousielle flow, constant viscosity
-    int sn = curr_vessel->sn;
     int nts = curr_vessel->nts;
     double a_store = curr_vessel->layers[0].a[sn];
     curr_vessel->layers[0].a[sn] = a_e_guess;
     double mu = get_app_visc(curr_vessel, sn);
     curr_vessel->layers[0].a[sn] = a_store;
-    double bar_tauw_e = 4*mu*curr_vessel->Q/(3.14159265*pow(a_e_guess*100, 3)); 
+    double bar_tauw_e = 4*mu*curr_vessel->Q[sn]/(3.14159265*pow(a_e_guess*100, 3)); 
 
     //Ratio of stress:WSS mediated matrix production
     double eta_K = curr_vessel->layers[0].constituents[first_gnr_idx].K_sigma_p_alpha_h /
@@ -261,7 +257,7 @@ int equil_obj_f(const gsl_vector* x, void* vessel_in, gsl_vector* f) {
     //Equilibrated stretches
     double lambda_r_e = h_e_guess / h_h;
     double lambda_th_e = (a_e_guess + h_e_guess / 2) / (a_h + h_h / 2);
-    double lambda_z_e = curr_vessel->layers[0].lambda_z_curr;
+    double lambda_z_e = curr_vessel->lambda_z_tau[sn];
     double F_e[3] = { lambda_r_e, lambda_th_e, lambda_z_e };
 
     //Equilibrated volume change
@@ -394,16 +390,16 @@ int find_tf_geom(void* vessel_in) {
     //referred to as traction free (but not stress free).
 
     //Local vars to store current pressure, force, and stretch
-    double P_temp = curr_vessel->P;
+    double P_temp = curr_vessel->P[sn];
     double f_temp = curr_vessel->f;
-    double lambda_z_temp = curr_vessel->layers[0].lambda_z_curr;
+    double lambda_z_temp = curr_vessel->lambda_z_tau[sn];
 
     //Get initial guesses from the loaded geometry
     double lambda_th_ul = 0.95 * curr_vessel->layers[0].a_mid[sn] / curr_vessel->layers[0].a_mid[0];
     double lambda_z_ul = 0.95 * lambda_z_temp;
 
     //Update vesseel loads to zero for traction free
-    curr_vessel->P = 0.0;
+    curr_vessel->P[sn] = 0.0;
     curr_vessel->f = 0.0;
     //((struct vessel*) curr_vessel)->T_act = 0.0;
 
@@ -451,11 +447,11 @@ int find_tf_geom(void* vessel_in) {
         curr_vessel->layers[layer].A[sn] = curr_vessel->layers[layer].A_mid[sn] - curr_vessel->layers[layer].H[sn] / 2;
 
         //Return current vars to the loaded conditions
-        curr_vessel->layers[layer].lambda_z_curr = lambda_z_temp;
     }
-    
 
-    curr_vessel->P = P_temp;
+
+    curr_vessel->lambda_z_tau[sn] = lambda_z_temp;
+    curr_vessel->P[sn] = P_temp;
     curr_vessel->f = f_temp;
 
     status = find_iv_geom(curr_vessel);
@@ -481,6 +477,9 @@ int tf_obj_f(const gsl_vector* x, void* vessel_in, gsl_vector* f) {
     double a = 0.0, h = 0.0, lambda_t = 0.0, J_s = 1.0, a_mid = 0.0;
     double lambda_z = lambda_z_ul_guess;
     double pa_calc = 0.0, fz_total = 0.0;
+
+    curr_vessel->lambda_z_tau[sn] = lambda_z;
+
     for (int layer = 0; layer < n_layers; layer ++) {
 
         J_s = curr_vessel->layers[layer].rhoR[sn] / curr_vessel->layers[layer].rho[sn];
@@ -504,7 +503,6 @@ int tf_obj_f(const gsl_vector* x, void* vessel_in, gsl_vector* f) {
 
         //Update current total stretches
         curr_vessel->layers[layer].lambda_th_curr = lambda_t;
-        curr_vessel->layers[layer].lambda_z_curr = lambda_z;
 
         update_sigma(&curr_vessel->layers[layer]);
 
@@ -566,7 +564,6 @@ void update_time_step(vessel& curr_vessel) {
             mass_check = fmax(abs((rhoR_s1 - rhoR_s0[layer]) / rhoR_s0[layer]), mass_check);
         }   
     } while (mass_check > tol&& iter < 100);
-
 
     ////Find current mechanobiological perturbation
 
@@ -824,8 +821,9 @@ double iv_obj_f(double a_mid_guess_inner, void *input_vessel) {
     double fz_total = 0.0; 
     bool equil_check = !(sn > 0 || curr_vessel->num_exp_flag == 1); // True if trying to determine the homeostatic equilibrium state
 
+    lambda_z = curr_vessel->lambda_z_tau[sn];  // Read z stretch from layer
+
     for (int layer = 0; layer < n_layers; layer ++) {
-        lambda_z = curr_vessel->layers[layer].lambda_z_curr;  // Read z stretch from layer
         if (!equil_check) J_s = curr_vessel->layers[layer].rhoR[sn] / curr_vessel->layers[layer].rho[sn]; // Compute volumetric strain from density
 
         if (layer == 0) {
@@ -856,7 +854,6 @@ double iv_obj_f(double a_mid_guess_inner, void *input_vessel) {
         curr_vessel->layers[layer].a_mid[sn] = a_mid;
         curr_vessel->layers[layer].a[sn] = a;
         curr_vessel->layers[layer].h[sn] = h;
-        curr_vessel->layers[layer].lambda_z_curr = lambda_z;
         if (equil_check) {
             for (int alpha = 0; alpha < curr_vessel->layers[layer].constituents.size(); alpha ++) {
                 curr_vessel->layers[layer].constituents[alpha].a_act[sn] = a;
@@ -870,7 +867,7 @@ double iv_obj_f(double a_mid_guess_inner, void *input_vessel) {
         if (!equil_check && curr_vessel->wss_calc_flag > 0) {
             if (layer == 0) {
                 mu = get_app_visc(curr_vessel, sn);
-                curr_vessel->bar_tauw = 4 * mu * curr_vessel->Q / (3.14159265 * pow(a * 100, 3));
+                curr_vessel->bar_tauw = 4 * mu * curr_vessel->Q[sn] / (3.14159265 * pow(a * 100, 3));
             } 
         }
         update_sigma(&curr_vessel->layers[layer]);
@@ -878,7 +875,7 @@ double iv_obj_f(double a_mid_guess_inner, void *input_vessel) {
         fz_total += M_PI * h * (2 * a + h) * curr_vessel->layers[layer].sigma[2];
     }
         //Calculating sigma_t_th from pressure P
-    double pa_th = curr_vessel->P * curr_vessel->layers[0].a[sn];
+    double pa_th = curr_vessel->P[sn] * curr_vessel->layers[0].a[sn];
         // Compute sigma invariant
     curr_vessel->f = fz_total;
 
@@ -910,7 +907,7 @@ void update_sigma(void* curr_layer) {
 
     //Calculate vessel stretches
     double lambda_th_s = curr_lay->lambda_th_curr;
-    double lambda_z_s = curr_lay->lambda_z_curr;
+    double lambda_z_s = curr_lay->parent_vessel->lambda_z_tau[sn];
 
 
     //Calculate constituent specific stretches for evolving constituents at the current time
@@ -1041,7 +1038,7 @@ void update_sigma(void* curr_layer) {
                 a = curr_lay->a[taun];
                 h = curr_lay->h[taun];
                 lambda_th_tau = (a + h / 2) / (a0 + h0 / 2);
-                lambda_z_tau = curr_lay->lambda_z_tau[taun];
+                lambda_z_tau = curr_lay->parent_vessel->lambda_z_tau[taun];
                 J_tau = curr_lay->rhoR[taun] / curr_lay->rho[taun];
                 F_tau[0] = J_tau / (lambda_th_tau * lambda_z_tau);
                 F_tau[1] = lambda_th_tau;
@@ -1073,7 +1070,7 @@ void update_sigma(void* curr_layer) {
                 a = curr_lay->a[taun - 1];
                 h = curr_lay->h[taun - 1];
                 lambda_th_tau = (a + h / 2) / (a0 + h0 / 2);
-                lambda_z_tau = curr_lay->lambda_z_tau[taun - 1];
+                lambda_z_tau = curr_lay->parent_vessel->lambda_z_tau[taun - 1];
                 J_tau = curr_lay->rhoR[taun - 1] / curr_lay->rho[taun - 1];;
                 F_tau[0] = J_tau / (lambda_th_tau * lambda_z_tau);
                 F_tau[1] = lambda_th_tau;
@@ -1134,7 +1131,7 @@ void update_sigma(void* curr_layer) {
                 a = curr_lay->a[taun_min];
                 h = curr_lay->h[taun_min];
                 lambda_th_tau = (a + h / 2) / (a0 + h0 / 2);
-                lambda_z_tau = curr_lay->lambda_z_tau[taun_min];
+                lambda_z_tau = curr_lay->parent_vessel->lambda_z_tau[taun_min];
                 J_tau = curr_lay->rhoR[taun_min] / curr_lay->constituents[alpha].rho_hat_alpha_h;
                 F_tau[0] = J_tau / (lambda_th_tau * lambda_z_tau);
                 F_tau[1] = lambda_th_tau;
@@ -1254,7 +1251,7 @@ void update_sigma(void* curr_layer) {
     double inner_radius_h = curr_lay->parent_vessel->layers[0].a_h;
     double outer_radius_h = curr_lay->parent_vessel->layers[n_layers - 1].a_h + curr_lay->parent_vessel->layers[n_layers - 1].h_h;
     double a_mid_h = curr_lay->a_mid_h;
-    lagrange = sigma[0] + (a_mid_h - inner_radius_h) / (outer_radius_h - inner_radius_h) * curr_lay->parent_vessel->P;
+    lagrange = sigma[0] + (a_mid_h - inner_radius_h) / (outer_radius_h - inner_radius_h) * curr_lay->parent_vessel->P[sn];
     for (int dir = 0; dir < 3; dir++) {
 
         //Accounting for active stress

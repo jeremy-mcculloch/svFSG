@@ -39,13 +39,12 @@ void layer::initializeJSON(json& json_in, vessel *parent) {
     a_e = 0.0;
     h_e = 0.0;
     lambda_th_curr = 1.0;
-    lambda_z_curr = 1.0;
     J_di = 1.0;
 
     // Histories
     a = { 0.0 }, a_mid = { 0.0 }, h = { 0.0 }, A = { 0.0 }, A_mid = { 0.0 }, H = { 0.0 };
     a_pas = { 0.0 }, h_pas = {0.0}, a_mid_pas = {0.0};
-    lambda_z_pre = { 0.0 }, rho = { 0.0 }, rhoR = { 0.0 }, ups_infl_p = { 0.0 }, ups_infl_d = {0.0}, lambda_z_tau = {0.0};
+    lambda_z_pre = { 0.0 }, rho = { 0.0 }, rhoR = { 0.0 }, ups_infl_p = { 0.0 }, ups_infl_d = {0.0};
     a.resize(nts);
     a_mid.resize(nts);
     h.resize(nts);
@@ -60,13 +59,11 @@ void layer::initializeJSON(json& json_in, vessel *parent) {
     rhoR.resize(nts);
     ups_infl_p.resize(nts);
     ups_infl_d.resize(nts);
-    lambda_z_tau.resize(nts);
     a[0] = a_h;
     a_mid[0] = a_mid_h;
     h[0] = h_h;
     rho[0] = rho_hat_h;
     rhoR[0] = rho_hat_h;
-    lambda_z_tau[0] = 1.0;
     
     // Stresses and stiffnesses
     sigma = {0.0}, sigma_h = {0.0}, Cbar = {0.0}, CC = {0.0};

@@ -68,7 +68,7 @@ void constituent::initializeJSON(json& json_in, layer* parent_l) {
     if (json_in.contains("stress_mediated_production")) K_sigma_p_alpha_h = json_in["stress_mediated_production"];
     if (json_in.contains("stress_mediated_degradation")) K_sigma_d_alpha_h = json_in["stress_mediated_degradation"];
     if (json_in.contains("wss_mediated_production")) K_tauw_p_alpha_h = json_in["wss_mediated_production"];
-    if (json_in.contains("wss_mediated_degradation")) K_tauw_p_alpha_h = json_in["wss_mediated_degradation"];
+    if (json_in.contains("wss_mediated_degradation")) K_tauw_d_alpha_h = json_in["wss_mediated_degradation"];
     if (json_in.contains("inflammation_production")) {
         K_infl_p_alpha = {};
         evaluate_expr(json_in["inflammation_production"], K_infl_p_alpha, dt, nts);

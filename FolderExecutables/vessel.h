@@ -31,7 +31,8 @@ public:
     double P_h, f_h, bar_tauw_h, Q_h, P_prev;
 
     //Current loading quantities
-    double P, f, bar_tauw, Q;
+    vector<double> P, Q, lambda_z_tau;
+    double f, bar_tauw;
     double mb_equil;
 
     //Mechanobiologically equilibrated quantities

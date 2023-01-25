@@ -76,8 +76,8 @@ void vessel::printNativeOutputs() {
 
     }
 
-    GnR_out << bar_tauw << "\t" << bar_tauw_h << "\t" << P << "\t" << P_h << "\t" << f << "\t" << f_h
-            << "\t" << Q << "\t" << Q_h << "\n";
+    GnR_out << bar_tauw << "\t" << bar_tauw_h << "\t" << P[sn] << "\t" << P_h << "\t" << f << "\t" << f_h
+            << "\t" << Q[sn] << "\t" << Q_h << "\n";
     GnR_out.flush();
 
     return;
@@ -98,15 +98,16 @@ void vessel::initializeJSON(string json_name, double n_days_inp, double dt_inp) 
     std::ifstream f(json_name);
     json json_in = json::parse(f);
     vessel_name = json_in["vessel_name"];
-    lambda_z_h = json_in["in_vivo_z_stretch"];
-    P_h = json_in["pressure"]; 
-    Q_h = json_in["flow_rate"];
+    evaluate_expr(json_in["in_vivo_z_stretch"], lambda_z_tau, dt, nts);
+    evaluate_expr(json_in["pressure"], P, dt, nts);
+    evaluate_expr(json_in["flow_rate"], Q, dt, nts);
    
     // Computed values
     f_h = 0;
-    P = P_h;
-    Q = Q_h;
-    P_prev = P_h;     
+    lambda_z_h = lambda_z_tau[0];
+    P_h = P[0];
+    Q_h = Q[0];
+
     // f = 0.0;
     mb_equil = 0;
     mb_equil_e = 0;
@@ -165,7 +166,6 @@ void vessel::initializeJSON(string json_name, double n_days_inp, double dt_inp) 
             layers[layer].constituents[alpha].T_act = layers[layer].constituents[alpha].T_act_h;
         }
         layers[layer].lambda_th_curr = 1.0;
-        layers[layer].lambda_z_curr = 1.0;
     }
     num_exp_flag = 0;
 

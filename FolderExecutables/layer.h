@@ -31,8 +31,8 @@ public:
     vector<double> sigma_h;
 
     //Current loading quantities
-    double lambda_th_curr, lambda_z_curr;
-    vector<double> sigma, Cbar, CC, lambda_z_tau;
+    double lambda_th_curr;
+    vector<double> sigma, Cbar, CC;
 
     double sigma_inv, sigma_inv_h;
 
