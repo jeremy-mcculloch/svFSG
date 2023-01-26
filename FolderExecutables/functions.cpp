@@ -768,6 +768,8 @@ int find_iv_geom(void* vessel_in) {
     gsl_root_fsolver* s = gsl_root_fsolver_alloc(T);
     gsl_function f = { &iv_obj_f, vessel_in};
 
+    double q = iv_obj_f(curr_vessel->layers[0].a_mid[sn], curr_vessel);
+
     //Set search range for new mid radius
     double a_mid_act, a_mid_high, a_mid_low;
     a_mid_low = 0.90 * curr_vessel->layers[0].a_mid[sn];
@@ -821,7 +823,7 @@ double iv_obj_f(double a_mid_guess_inner, void *input_vessel) {
     double fz_total = 0.0; 
     bool equil_check = !(sn > 0 || curr_vessel->num_exp_flag == 1); // True if trying to determine the homeostatic equilibrium state
 
-    lambda_z = curr_vessel->lambda_z_tau[sn];  // Read z stretch from layer
+    lambda_z = curr_vessel->lambda_z_tau[sn] / curr_vessel->lambda_z_tau[0];  // Read z stretch from layer
 
     for (int layer = 0; layer < n_layers; layer ++) {
         if (!equil_check) J_s = curr_vessel->layers[layer].rhoR[sn] / curr_vessel->layers[layer].rho[sn]; // Compute volumetric strain from density
@@ -843,12 +845,16 @@ double iv_obj_f(double a_mid_guess_inner, void *input_vessel) {
             double A = a_h + h_h / 2;
             double B = -(a + h);
             double C = -h_h / 2 * J_s / lambda_z;
-            lambda_t = -B / 2 + sqrt(B * B / 4 - C);
+            lambda_t = (-B  + sqrt(B * B - 4 * A * C)) / (2 * A);
             a_mid = lambda_t * (a_h + h_h / 2);
+            // printf("a_h:%f, h_h: %f, lambda_t:%f\n", a_h, h_h, lambda_t);
+
         }
         // Compute a and h from stretches
         h = J_s / (lambda_t * lambda_z) * curr_vessel->layers[layer].h_h;
         a = a_mid - h / 2;
+        // printf("a:%f, h:%f\n", a, h);
+
 
         //Update vessel geometry before running update_sigma
         curr_vessel->layers[layer].a_mid[sn] = a_mid;
@@ -873,6 +879,7 @@ double iv_obj_f(double a_mid_guess_inner, void *input_vessel) {
         update_sigma(&curr_vessel->layers[layer]);
         pa_calc += h * curr_vessel->layers[layer].sigma[1];
         fz_total += M_PI * h * (2 * a + h) * curr_vessel->layers[layer].sigma[2];
+
     }
         //Calculating sigma_t_th from pressure P
     double pa_th = curr_vessel->P[sn] * curr_vessel->layers[0].a[sn];
@@ -907,7 +914,7 @@ void update_sigma(void* curr_layer) {
 
     //Calculate vessel stretches
     double lambda_th_s = curr_lay->lambda_th_curr;
-    double lambda_z_s = curr_lay->parent_vessel->lambda_z_tau[sn];
+    double lambda_z_s = curr_lay->parent_vessel->lambda_z_tau[sn] / curr_lay->parent_vessel->lambda_z_tau[0];
 
 
     //Calculate constituent specific stretches for evolving constituents at the current time
@@ -1164,8 +1171,6 @@ void update_sigma(void* curr_layer) {
                     Cbar[dir] += (mq_2 * hat_Cbar_2[dir] + mq_0 * hat_Cbar_0[dir])
                     / curr_lay->constituents[alpha].rho_hat_alpha_h * dt / 2;
 
-                        //printf("sigma: %f, %f, %f, %f, %f\n", mq_2, mq_0, hat_sigma_0[dir], hat_sigma_2[dir], sigma[dir], dt, curr_lay->constituents[alpha].rho_hat_alpha_h);
-
                 }
 
                 if (curr_lay->constituents[alpha].alpha_active == 1) {
@@ -1199,7 +1204,6 @@ void update_sigma(void* curr_layer) {
                 curr_lay->constituents[alpha].rho_hat_alpha_h * hat_sigma_2[dir];
                 Cbar[dir] += curr_lay->constituents[alpha].rhoR_alpha[sn] /
                 curr_lay->constituents[alpha].rho_hat_alpha_h * hat_Cbar_2[dir];
-
             }
 
         }
@@ -1251,7 +1255,7 @@ void update_sigma(void* curr_layer) {
     double inner_radius_h = curr_lay->parent_vessel->layers[0].a_h;
     double outer_radius_h = curr_lay->parent_vessel->layers[n_layers - 1].a_h + curr_lay->parent_vessel->layers[n_layers - 1].h_h;
     double a_mid_h = curr_lay->a_mid_h;
-    lagrange = sigma[0] + (a_mid_h - inner_radius_h) / (outer_radius_h - inner_radius_h) * curr_lay->parent_vessel->P[sn];
+    lagrange = sigma[0];// + (a_mid_h - inner_radius_h) / (outer_radius_h - inner_radius_h) * curr_lay->parent_vessel->P[sn];
     for (int dir = 0; dir < 3; dir++) {
 
         //Accounting for active stress
