@@ -2,7 +2,7 @@
 #ifndef VESSEL
 #define VESSEL
 
-#include "json.hpp"
+#include "json_fwd.hpp"
 using std::string;
 using std::vector;
 using std::cout;
@@ -45,6 +45,9 @@ public:
     int wss_calc_flag; //indicates if GnR should update its own current WSS
     int app_visc_flag; //indicates whether to use the empirical correction for viscosity from Secomb 2017
 
+    string variable_defs;
+    string constant_defs; 
+
     //Conversions
     double um_to_m = pow(10, -6);
     double mm_to_m = pow(10, -3);
@@ -60,6 +63,7 @@ public:
     //Vessel(string file_name, string vessel_type); //File name and type constructor ***ELS USE DELEGATING CONSTRUCTOR***
     void printNativeOutputs();
     void initializeJSON(string json_name, double n_days_inp = 10, double dt_inp = 1);
+    void evaluate_expr(json& expression_in, vector<double>& result, double dt, int nts);
     //~Vessel() destructor
 
 };

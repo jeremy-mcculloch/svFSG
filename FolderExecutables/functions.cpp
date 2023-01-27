@@ -9,7 +9,6 @@
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_roots.h>
 #include <gsl/gsl_multiroots.h>
-#include <stdexcept>
 
 
 #include "vessel.h"
@@ -20,44 +19,11 @@
 #include "matfun.h"
 #include "exprtk.hpp"
 
+
 using std::string;
 using std::vector;
 using std::cout;
 
-
-void evaluate_expr(json expression_in, vector<double>& result, double dt, int nts) {
-    if (expression_in.is_string()) {
-        auto expression_string = expression_in.get<std::string>();
-
-        typedef exprtk::symbol_table<double> symbol_table_t;
-        typedef exprtk::expression<double>   expression_t;
-        typedef exprtk::parser<double>       parser_t;
-
-        double t;
-
-       symbol_table_t symbol_table;
-       symbol_table.add_variable("t", t);
-       symbol_table.add_constants();
-
-       expression_t expression;
-       expression.register_symbol_table(symbol_table);
-
-       parser_t parser;
-       parser.compile(expression_string,expression);
-
-        for (int sn = 0; sn < nts; sn++) {
-            t = sn * dt;
-            result.push_back(expression.value());
-        }
-    } else if (expression_in.is_number()) {
-        auto val = expression_in.get<double>();
-        for (int sn = 0; sn < nts; sn++) {
-            result.push_back(val);
-        }
-    } else {
-        throw std::invalid_argument("Expression should be a string or a number");
-    }
-}
 
 int print_state_mr(size_t iter, gsl_multiroot_fsolver* s) {
 

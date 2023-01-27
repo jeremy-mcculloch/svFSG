@@ -100,6 +100,5 @@ void layer::initializeJSON(json& json_in, vessel *parent) {
         constituents.push_back(next_const);
         constituents[alpha].initializeJSON(constituents_in[alpha], this);
     } 
-    printf("size: %lu", constituents.size());
 } //Default constructor
 

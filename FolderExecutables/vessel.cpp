@@ -15,6 +15,8 @@
 #include "functions.h"
 #include "layer.h"
 #include "constituent.h"
+#include "exprtk.hpp"
+#include <stdexcept>
 
 using std::string;
 using std::vector;
@@ -61,6 +63,51 @@ vessel::vessel() {
     hns_name = "HnS_out";
 }
 
+
+void vessel::evaluate_expr(json& expression_in, vector<double>& result, double dt, int nts) {
+    if (expression_in.is_string()) {
+        auto expression_string = expression_in.get<std::string>();
+        json constant_definitons = json::parse(constant_defs);
+        json variable_definitions = json::parse(variable_defs);
+        string full_expr_str = "";
+        for (int i = 0; i < variable_definitions.size(); i++) {
+            full_expr_str += "var " + variable_definitions[i][0].get<string>() + " := " + variable_definitions[i][1].get<string>() + ";";
+        }
+        full_expr_str += expression_string;
+
+        typedef exprtk::symbol_table<double> symbol_table_t;
+        typedef exprtk::expression<double>   expression_t;
+        typedef exprtk::parser<double>       parser_t;
+
+        double t;
+
+       symbol_table_t symbol_table;
+       symbol_table.add_variable("t", t);
+        for (json::iterator it = constant_definitons.begin(); it != constant_definitons.end(); ++it) {
+            symbol_table.add_constant(it.key(),it.value().get<double>());
+        }
+        symbol_table.add_constants();
+
+       expression_t expression;
+       expression.register_symbol_table(symbol_table);
+
+       parser_t parser;
+       parser.compile(full_expr_str,expression);
+        for (int sn = 0; sn < nts; sn++) {
+            t = sn * dt;
+            result.push_back(expression.value());
+        }
+        printf("\n");
+    } else if (expression_in.is_number()) {
+        auto val = expression_in.get<double>();
+        for (int sn = 0; sn < nts; sn++) {
+            result.push_back(val);
+        }
+    } else {
+        throw std::invalid_argument("Expression should be a string or a number");
+    }
+}
+
 void vessel::printNativeOutputs() {
     GnR_out << s << "\t";
     for (int l = 0; l < layers.size(); l ++) {
@@ -97,6 +144,12 @@ void vessel::initializeJSON(string json_name, double n_days_inp, double dt_inp) 
 
     std::ifstream f(json_name);
     json json_in = json::parse(f);
+
+    variable_defs = "";
+    constant_defs = "";
+    if (json_in.contains("constants")) constant_defs = json_in["constants"].dump();
+    if (json_in.contains("variables")) variable_defs = json_in["variables"].dump();
+
     vessel_name = json_in["vessel_name"];
     evaluate_expr(json_in["in_vivo_z_stretch"], lambda_z_tau, dt, nts);
     evaluate_expr(json_in["pressure"], P, dt, nts);

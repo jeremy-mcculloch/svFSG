@@ -36,17 +36,17 @@ void constituent::initializeJSON(json& json_in, layer* parent_l) {
     g_alpha_h = {};
     G_alpha_h = {};
     if (model.compare("neohookean") == 0) {
-        evaluate_expr(json_in["c1"], c_alpha_h, dt, nts);
+        parent_l->parent_vessel->evaluate_expr(json_in["c1"], c_alpha_h, dt, nts);
         g_alpha_h = {0.0};
         g_alpha_h.resize(nts);
         eta_alpha_h = -1.0;
-        evaluate_expr(json_in["prestretch_r"], G_alpha_h, dt, nts);
-        evaluate_expr(json_in["prestretch_th"], G_alpha_h, dt, nts);
-        evaluate_expr(json_in["prestretch_z"], G_alpha_h, dt, nts);
+        parent_l->parent_vessel->evaluate_expr(json_in["prestretch_r"], G_alpha_h, dt, nts);
+        parent_l->parent_vessel->evaluate_expr(json_in["prestretch_th"], G_alpha_h, dt, nts);
+        parent_l->parent_vessel->evaluate_expr(json_in["prestretch_z"], G_alpha_h, dt, nts);
     } else if (model.compare("fung") == 0) {
-        evaluate_expr(json_in["c1"], c_alpha_h, dt, nts);
-        evaluate_expr(json_in["c2"], c_alpha_h, dt, nts);
-        evaluate_expr(json_in["prestretch"], g_alpha_h, dt, nts);
+        parent_l->parent_vessel->evaluate_expr(json_in["c1"], c_alpha_h, dt, nts);
+        parent_l->parent_vessel->evaluate_expr(json_in["c2"], c_alpha_h, dt, nts);
+        parent_l->parent_vessel->evaluate_expr(json_in["prestretch"], g_alpha_h, dt, nts);
         eta_alpha_h = json_in["orientation"];
         eta_alpha_h = eta_alpha_h * M_PI / 180.0;
         G_alpha_h = {0.0};
@@ -71,7 +71,7 @@ void constituent::initializeJSON(json& json_in, layer* parent_l) {
     if (json_in.contains("wss_mediated_degradation")) K_tauw_d_alpha_h = json_in["wss_mediated_degradation"];
     if (json_in.contains("inflammation_production")) {
         K_infl_p_alpha = {};
-        evaluate_expr(json_in["inflammation_production"], K_infl_p_alpha, dt, nts);
+        parent_l->parent_vessel->evaluate_expr(json_in["inflammation_production"], K_infl_p_alpha, dt, nts);
     } else {
         K_infl_p_alpha = {0.0};
         K_infl_p_alpha.resize(nts);
