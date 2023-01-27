@@ -4,7 +4,7 @@
       "tau1_infl": 7.0,
       "tau2_infl": 28.0,
       "tau3_infl": 42.0,
-      "fctxi": 0.333333
+      "fctxi": 0.3333333
    },
    "variables": [
       ["x_infl", "if(t < tau1_infl, 0.5 * (1 - cos(pi * t / tau1_infl)), if(t < tau2_infl, 1.0, if(t < tau3_infl, 1 - 0.25 * (1 - cos(pi * (t - tau2_infl) / (tau3_infl - tau2_infl))), 0.5)))"],
@@ -32,7 +32,7 @@
             {
                "mass_ratio": 0.4714,
                "constituent_model": "neohookean",
-               "c1": "89710 ",
+               "c1": 89710,
                "prestretch_r": 0.324886, 
                "prestretch_th": 1.9, 
                "prestretch_z": 1.62,

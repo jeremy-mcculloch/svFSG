@@ -26,6 +26,8 @@ using json = nlohmann::json;
 
 constituent::constituent() { } //Default constructor
 void constituent::initializeJSON(json& json_in, layer* parent_l) { 
+    ups_saved = 0.0;
+
     // Do not save references to parent yet, do that from vessel.cpp once everything is in the appropriate list
     parent_layer = parent_l;
     int nts = parent_l->parent_vessel->nts;

@@ -25,6 +25,7 @@ using json = nlohmann::json;
 layer::layer() { } //Default constructor
 
 void layer::initializeJSON(json& json_in, vessel *parent) { 
+
     parent_vessel = parent;
     int nts = parent->nts;
     a_h = json_in["inner_radius_homeostatic"];

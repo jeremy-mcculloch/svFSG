@@ -97,7 +97,6 @@ void vessel::evaluate_expr(json& expression_in, vector<double>& result, double d
             t = sn * dt;
             result.push_back(expression.value());
         }
-        printf("\n");
     } else if (expression_in.is_number()) {
         auto val = expression_in.get<double>();
         for (int sn = 0; sn < nts; sn++) {
@@ -236,7 +235,7 @@ void vessel::initializeJSON(string json_name, double n_days_inp, double dt_inp) 
         layers[layer].a_mid_h = layers[layer].a_mid[0];
 
         //Update stress to in vivo stress for homeostatic stress calc
-        update_sigma(&layers[layer]);
+        // update_sigma(&layers[layer]);
         layers[layer].sigma_h = layers[layer].sigma;
         layers[layer].sigma_inv_h = layers[layer].sigma_inv;
 

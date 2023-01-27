@@ -48,6 +48,7 @@ public:
     string variable_defs;
     string constant_defs; 
 
+
     //Conversions
     double um_to_m = pow(10, -6);
     double mm_to_m = pow(10, -3);

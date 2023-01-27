@@ -53,6 +53,9 @@ public:
 
     // Create array of constituents
     vector<constituent> constituents;
+
+;
+
     
     layer();
     void initializeJSON(json& json_in, vessel *parent); 

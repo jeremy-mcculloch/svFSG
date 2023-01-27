@@ -25,6 +25,7 @@ using std::vector;
 using std::cout;
 
 
+
 int print_state_mr(size_t iter, gsl_multiroot_fsolver* s) {
 
     printf("iter = %3u", iter);
@@ -645,6 +646,8 @@ void update_kinetics(layer& curr_layer) {
             upsilon_p = (upsilon_p > 0)* upsilon_p;
             upsilon_d = (upsilon_d > 0)* upsilon_d;
 
+            curr_layer.constituents[alpha].ups_saved = upsilon_p;
+
             //Reset these to zero for each constituent
             k_alpha_s = 0;
             mR_alpha_s = 0;
@@ -764,6 +767,9 @@ int find_iv_geom(void* vessel_in) {
         //printf("%5d [%.7f, %.7f] %.7f %.7fs\n", iter, a_mid_low, a_mid_high, a_mid_act, a_mid_high - a_mid_low);
     } while (status == GSL_CONTINUE && iter < max_iter);
 
+
+
+
     //if (iter > max_iter-2){
     //    printf("status = NOT CONVERGED\n");
     //}
@@ -786,7 +792,7 @@ double iv_obj_f(double a_mid_guess_inner, void *input_vessel) {
     double a = 0.0, h = 0.0, lambda_t = 0.0, lambda_z = 0.0, J_s = 1.0, a_mid = 0.0;
     double mu = 0.0;
     double pa_calc = 0.0;
-    double fz_total = 0.0; 
+    double fz_total = 0.0, h_total = 0.0; 
     bool equil_check = !(sn > 0 || curr_vessel->num_exp_flag == 1); // True if trying to determine the homeostatic equilibrium state
 
     lambda_z = curr_vessel->lambda_z_tau[sn] / curr_vessel->lambda_z_tau[0];  // Read z stretch from layer
@@ -845,14 +851,21 @@ double iv_obj_f(double a_mid_guess_inner, void *input_vessel) {
         update_sigma(&curr_vessel->layers[layer]);
         pa_calc += h * curr_vessel->layers[layer].sigma[1];
         fz_total += M_PI * h * (2 * a + h) * curr_vessel->layers[layer].sigma[2];
+        h_total += h;
 
     }
-        //Calculating sigma_t_th from pressure P
+
+    //Calculating sigma_t_th from pressure P
     double pa_th = curr_vessel->P[sn] * curr_vessel->layers[0].a[sn];
         // Compute sigma invariant
     curr_vessel->f = fz_total;
 
     double J = pa_calc - pa_th;
+
+    double sigma_inv = pa_th / h_total + fz_total / (M_PI * h_total * (2 * (a + h) - h_total));
+    for (int layer = 0; layer < n_layers; layer++) {
+        curr_vessel->layers[layer].sigma_inv = sigma_inv;
+    }
 
     return J;
 }
@@ -1034,7 +1047,7 @@ void update_sigma(void* curr_layer) {
                     constitutive_return = constitutive(&curr_lay->constituents[alpha], lambda_alpha_s[alpha], taun);
                     hat_S_alpha = constitutive_return[0];
                     hat_dSdC_alpha = constitutive_return[1];
-                    F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir * nts + sn];
+                    F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir * nts + taun];
                     hat_sigma_1[dir] = F_alpha_ntau_s * hat_S_alpha * F_alpha_ntau_s / J_s;
                     hat_Cbar_1[dir] = F_alpha_ntau_s * F_alpha_ntau_s * hat_dSdC_alpha * F_alpha_ntau_s * F_alpha_ntau_s / J_s;
                 }
@@ -1052,7 +1065,7 @@ void update_sigma(void* curr_layer) {
                 //Find 2nd intermediate kinetics
                 k_0 = curr_lay->constituents[alpha].k_alpha[taun - 1];
                 q_0 = exp(-(k_2 + 4 * k_1 + k_0) * dt / 3) * q_2;
-                mq_0 = curr_lay->constituents[alpha].mR_alpha[+ taun - 1] * q_0;
+                mq_0 = curr_lay->constituents[alpha].mR_alpha[taun - 1] * q_0;
 
                 //Find intermediate active state
                 if (curr_lay->constituents[alpha].alpha_active == 1) {
@@ -1066,7 +1079,7 @@ void update_sigma(void* curr_layer) {
                     constitutive_return = constitutive(&curr_lay->constituents[alpha], lambda_alpha_s[alpha], taun - 1);
                     hat_S_alpha = constitutive_return[0];
                     hat_dSdC_alpha = constitutive_return[1];
-                    F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir * nts + sn];
+                    F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir * nts + taun - 1];
                     hat_sigma_0[dir] = F_alpha_ntau_s * hat_S_alpha * F_alpha_ntau_s / J_s;
                     hat_Cbar_0[dir] = F_alpha_ntau_s * F_alpha_ntau_s * hat_dSdC_alpha * F_alpha_ntau_s * F_alpha_ntau_s / J_s;
 
@@ -1127,7 +1140,7 @@ void update_sigma(void* curr_layer) {
                     constitutive_return = constitutive(&curr_lay->constituents[alpha], lambda_alpha_s[alpha], taun_min);
                     hat_S_alpha = constitutive_return[0];
                     hat_dSdC_alpha = constitutive_return[1];
-                    F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir * nts + sn];
+                    F_alpha_ntau_s = F_s[dir] / F_tau[dir] * curr_lay->constituents[alpha].G_alpha_h[dir * nts + taun_min];
                     hat_sigma_0[dir] = F_alpha_ntau_s * hat_S_alpha * F_alpha_ntau_s / J_s;
                     hat_Cbar_0[dir] = F_alpha_ntau_s * F_alpha_ntau_s * hat_dSdC_alpha * F_alpha_ntau_s * F_alpha_ntau_s / J_s;
 
@@ -1264,16 +1277,16 @@ vector<double> constitutive(void* curr_constituent, double lambda_alpha_s, int t
     //Check if anisotropic
     if (curr_const->eta_alpha_h >= 0) {
 
-        lambda_alpha_ntau_s = curr_const->g_alpha_h[sn] * lambda_alpha_s / curr_const->lambda_alpha_tau[ts];
+        lambda_alpha_ntau_s = curr_const->g_alpha_h[ts] * lambda_alpha_s / curr_const->lambda_alpha_tau[ts];
 
         if (lambda_alpha_ntau_s < 1) {
             lambda_alpha_ntau_s = 1;
         }
 
         Q1 = (pow(lambda_alpha_ntau_s, 2) - 1);
-        Q2 = curr_const->c_alpha_h[1 * nts + sn] * pow(Q1, 2);
-        hat_S_alpha = curr_const->c_alpha_h[0 * nts + sn] * Q1 * exp(Q2);
-        hat_dS_dlambda2_alpha = curr_const->c_alpha_h[0 * nts + sn] * exp(Q2) * (1 + 2 * Q2);
+        Q2 = curr_const->c_alpha_h[1 * nts + ts] * pow(Q1, 2);
+        hat_S_alpha = curr_const->c_alpha_h[0 * nts + ts] * Q1 * exp(Q2);
+        hat_dS_dlambda2_alpha = curr_const->c_alpha_h[0 * nts + ts] * exp(Q2) * (1 + 2 * Q2);
         if (sn == 0) {
         }
 
@@ -1292,7 +1305,7 @@ vector<double> constitutive(void* curr_constituent, double lambda_alpha_s, int t
             pol_mod = 1;
         }
 
-        hat_S_alpha = pol_mod * curr_const->c_alpha_h[0 * nts + sn];
+        hat_S_alpha = pol_mod * curr_const->c_alpha_h[0 * nts + ts];
     }
 
     return_constitutive = { hat_S_alpha , hat_dS_dlambda2_alpha };

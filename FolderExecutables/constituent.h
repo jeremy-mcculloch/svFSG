@@ -52,6 +52,9 @@ public:
 
     // Maintain reference to parent layer   
     layer *parent_layer;
+
+    // Temp state vars
+    double ups_saved;
  
     constituent();
     void initializeJSON(json& json_in, layer* parent_l); 
