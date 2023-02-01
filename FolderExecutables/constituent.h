@@ -30,6 +30,7 @@ public:
     //Histories
     vector<double> rhoR_alpha, mR_alpha, k_alpha;
     vector<double> epsilonR_alpha, epsilon_alpha;
+    vector<double> degradation_profile; // for materials that do not grow (e.g. elastin, degradable sheath), specifies the proportion of remaining material at time t
 
     //Current loading quantities
     vector<double> lambda_alpha_tau;

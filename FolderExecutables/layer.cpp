@@ -65,6 +65,9 @@ void layer::initializeJSON(json& json_in, vessel *parent) {
     h[0] = h_h;
     rho[0] = rho_hat_h;
     rhoR[0] = rho_hat_h;
+
+    is_contacting = true;
+    if (json_in.contains("inital_contact"))is_contacting = json_in["initial_contact"].get<bool>();
     
     // Stresses and stiffnesses
     sigma = {0.0}, sigma_h = {0.0}, Cbar = {0.0}, CC = {0.0};

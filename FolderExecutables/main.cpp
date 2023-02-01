@@ -124,7 +124,7 @@ int main( int ac, char* av[] ) {
                     for (int sn = 1; sn < native_vessel.nts; sn++) {
                         //Calculate elastin degradation
                         s = sn * native_vessel.dt;
-                        Q_p1 = 1.0; // (1 + exp(-k_p1 * zeta_p1)) / (1 + exp(k_p1 * gamma_p_d1 * (s - zeta_p1 * gamma_p_d2)));
+                        Q_p1 = native_vessel.layers[layer].constituents[alpha].degradation_profile[sn]; // (1 + exp(-k_p1 * zeta_p1)) / (1 + exp(k_p1 * gamma_p_d1 * (s - zeta_p1 * gamma_p_d2)));
                         
                         //Uncomment for elastin damage by section
                         //if(L_Z == 2) {

@@ -48,6 +48,8 @@ public:
     //Mass density parameters
     double rho_hat_h;
 
+    bool is_contacting; // True for outer layers if contacting inner vessels, always true for inner layer. 
+
     // Maintain reference to parent vessel   
     vessel *parent_vessel;
 

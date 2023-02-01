@@ -18,7 +18,7 @@
 #include "functions.h"
 #include "matfun.h"
 #include "exprtk.hpp"
-
+#define COMBINED_DELTA_SIGMA 
 
 using std::string;
 using std::vector;
@@ -534,6 +534,14 @@ void update_time_step(vessel& curr_vessel) {
 
     ////Find current mechanobiological perturbation
 
+    // Update is_contacting variable
+    for (int layer = 1; layer < curr_vessel.layers.size(); layer++) {
+
+        double b_inner = curr_vessel.layers[layer - 1].a[sn] + curr_vessel.layers[layer - 1].h[sn];
+        double a_h_outer = curr_vessel.layers[layer].a_h;
+        curr_vessel.layers[layer].is_contacting = curr_vessel.layers[layer].is_contacting || (b_inner > a_h_outer);
+    }
+
 
     delta_sigma = (curr_vessel.layers[0].sigma_inv / curr_vessel.layers[0].sigma_inv_h) - 1;
     delta_tauw = (curr_vessel.bar_tauw / curr_vessel.bar_tauw_h) - 1;
@@ -814,6 +822,7 @@ double iv_obj_f(double a_mid_guess_inner, void *input_vessel) {
             // 0 = (a_h + h_h / 2) * lambda_t^2 - (a + h) * lambda_t - h_h * J_s / 2 / lambda_z
             double h_h = curr_vessel->layers[layer].h_h;
             double a_h = curr_vessel->layers[layer].a_h;
+            if (a + h < a_h && !curr_vessel->layers[layer].is_contacting) break; // if inner layer does not contact current layer, then ignore it 
             double A = a_h + h_h / 2;
             double B = -(a + h);
             double C = -h_h / 2 * J_s / lambda_z;
@@ -862,10 +871,14 @@ double iv_obj_f(double a_mid_guess_inner, void *input_vessel) {
 
     double J = pa_calc - pa_th;
 
+#ifdef COMBINED_DELTA_SIGMA
+
     double sigma_inv = pa_th / h_total + fz_total / (M_PI * h_total * (2 * (a + h) - h_total));
     for (int layer = 0; layer < n_layers; layer++) {
         curr_vessel->layers[layer].sigma_inv = sigma_inv;
     }
+
+#endif
 
     return J;
 }
