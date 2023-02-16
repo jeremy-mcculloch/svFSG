@@ -197,18 +197,18 @@ int main( int ac, char* av[] ) {
                     native_vessel.s = native_vessel.dt * sn;
                     native_vessel.sn = sn;
                     update_time_step(native_vessel);
-                    // P/P0, a/a0, upsMm, upsAc, phiMm, phiAc, hM / hM0, hA / hA0
-                    printf("%f, %f, %f, %f, %f, %f, %f, %f;\n", 
-                        native_vessel.P[sn] / native_vessel.P[0], native_vessel.layers[0].a[sn] / native_vessel.layers[0].a[0], native_vessel.layers[0].constituents[1].ups_saved, native_vessel.layers[1].constituents[1].ups_saved,
-                        native_vessel.layers[0].constituents[1].rhoR_alpha[sn] / native_vessel.layers[0].constituents[1].rhoR_alpha[0], native_vessel.layers[1].constituents[1].rhoR_alpha[sn] / native_vessel.layers[1].constituents[1].rhoR_alpha[0], 
-                        native_vessel.layers[0].h[sn] / native_vessel.layers[0].h[0], native_vessel.layers[1].h[sn] / native_vessel.layers[1].h[0]);
+                    // P/P0, a/a0, tv / tv0, 
+                    // ts / ts0, sigmatt_v, sigmatt_s, sigmazz_v, sigmazz_s
+                    // printf("%f, %f, %f, %f, %f, %f, %f, %f;\n", 
+                    //     native_vessel.P[sn] / native_vessel.P[0], native_vessel.layers[0].a[sn] / native_vessel.layers[0].a[0], native_vessel.layers[0].h[sn] / native_vessel.layers[0].h[0], 
+                    //     native_vessel.layers[1].h[sn] / native_vessel.layers[1].h[0], native_vessel.layers[0].sigma[1] / 1000, native_vessel.layers[1].sigma[1] / 1000, native_vessel.layers[0].sigma[2] / 1000, native_vessel.layers[1].sigma[2] / 1000);
 
-                    // printf("%s %f\n", "Time:", native_vessel.s);
-                    // for (int layer = 0; layer < native_vessel.layers.size(); layer++) {
-                    //     printf("%s %i %s %f %s %f %s %f %s %f %s %f\n","Layer #:", layer, "a: ", native_vessel.layers[layer].a[native_vessel.sn], "h:", native_vessel.layers[layer].h[native_vessel.sn], 
-                    //         "Cbar_r:", native_vessel.layers[layer].Cbar[0], "Cbar_t:", native_vessel.layers[layer].Cbar[1], "Cbar_z:", native_vessel.layers[layer].Cbar[2]);
-                    // }
-                    // printf("%s \n", "---------------------------");
+                    printf("%s %f\n", "Time:", native_vessel.s);
+                    for (int layer = 0; layer < native_vessel.layers.size(); layer++) {
+                        printf("%s %i %s %f %s %f %s %f %s %f %s %f\n","Layer #:", layer, "a: ", native_vessel.layers[layer].a[native_vessel.sn], "h:", native_vessel.layers[layer].h[native_vessel.sn], 
+                            "Cbar_r:", native_vessel.layers[layer].Cbar[0], "Cbar_t:", native_vessel.layers[layer].Cbar[1], "Cbar_z:", native_vessel.layers[layer].Cbar[2]);
+                    }
+                    printf("%s \n", "---------------------------");
                     fflush(stdout);
 
                 }

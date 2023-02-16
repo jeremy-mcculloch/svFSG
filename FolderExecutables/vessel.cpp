@@ -189,7 +189,7 @@ void vessel::initializeJSON(string json_name, double n_days_inp, double dt_inp) 
     }
     
     int equil_check = 0; 
-    int num_act_incr = 10;   
+    int num_act_incr = 0;   
     num_exp_flag = 1;
     for (int i = 1; i < num_act_incr; i++){
         for (int layer = 0; layer < layers.size(); layer ++) {
@@ -207,7 +207,7 @@ void vessel::initializeJSON(string json_name, double n_days_inp, double dt_inp) 
 
         // Save resulting geometry as passive geometry
         layers[layer].h_pas[0] = layers[layer].h[0];
-        layers[layer].a_pas[0] = layers[layer].a[0];
+        layers[layer].a[0] = layers[layer].a[0];
         layers[layer].a_mid_pas[0] = layers[layer].a_mid[0];
 
         //Reinitialize to input geometry parameters for solving

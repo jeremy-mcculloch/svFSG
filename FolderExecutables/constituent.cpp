@@ -76,8 +76,9 @@ void constituent::initializeJSON(json& json_in, layer* parent_l) {
         degradation_profile = {};
         parent_l->parent_vessel->evaluate_expr(json_in["degradation_profile"], degradation_profile, dt, nts);
     } else {
-        degradation_profile = {1.0};
+        degradation_profile = {0.0};
         degradation_profile.resize(nts);
+        for (int i = 0; i < nts; i ++) degradation_profile[i] = 1.0;
     }
 
 

@@ -18,8 +18,8 @@
 #include "functions.h"
 #include "matfun.h"
 #include "exprtk.hpp"
-#define COMBINED_DELTA_SIGMA 
-
+// #define COMBINED_DELTA_SIGMA 
+#define ZERO_LAGRANGE_BC
 using std::string;
 using std::vector;
 using std::cout;
@@ -509,6 +509,12 @@ void update_time_step(vessel& curr_vessel) {
 
     //Find new equilibrium geometry.
     //std::cout << curr_vessel.a_mid[sn]<< std::endl;
+    // step up gradually if needed
+    double delta_P_th = 0.05;
+    if (abs((curr_vessel.P[sn] - curr_vessel.P[sn - 1]) / curr_vessel.P[sn - 1]) > delta_P_th) {
+        ramp_pressure_test(&curr_vessel, curr_vessel.P[sn - 1], curr_vessel.P[sn]);
+    }
+
     equil_check = find_iv_geom(&curr_vessel);
 
     //Find real mass density production at the current time step iteratively
@@ -822,7 +828,15 @@ double iv_obj_f(double a_mid_guess_inner, void *input_vessel) {
             // 0 = (a_h + h_h / 2) * lambda_t^2 - (a + h) * lambda_t - h_h * J_s / 2 / lambda_z
             double h_h = curr_vessel->layers[layer].h_h;
             double a_h = curr_vessel->layers[layer].a_h;
-            if (a + h < a_h && !curr_vessel->layers[layer].is_contacting) break; // if inner layer does not contact current layer, then ignore it 
+            bool now_contacting = a + h >= a_h && sn > 0; // not allowed to begin contact at t = 0
+            if (!now_contacting && !curr_vessel->layers[layer].is_contacting) {
+                if (sn > 0) {
+                    curr_vessel->layers[layer].a_mid[sn] = curr_vessel->layers[layer].a_mid_h; // set to 0 for debugging purposes
+                    curr_vessel->layers[layer].a[sn] = curr_vessel->layers[layer].a_h;
+                    curr_vessel->layers[layer].h[sn] = curr_vessel->layers[layer].h_h;
+                }
+                break; // if inner layer does not contact current layer, then ignore it
+            }
             double A = a_h + h_h / 2;
             double B = -(a + h);
             double C = -h_h / 2 * J_s / lambda_z;
@@ -871,6 +885,7 @@ double iv_obj_f(double a_mid_guess_inner, void *input_vessel) {
 
     double J = pa_calc - pa_th;
 
+    // printf("pa: %f, %f", pa_calc, pa_th);
 #ifdef COMBINED_DELTA_SIGMA
 
     double sigma_inv = pa_th / h_total + fz_total / (M_PI * h_total * (2 * (a + h) - h_total));
@@ -1247,7 +1262,10 @@ void update_sigma(void* curr_layer) {
     double inner_radius_h = curr_lay->parent_vessel->layers[0].a_h;
     double outer_radius_h = curr_lay->parent_vessel->layers[n_layers - 1].a_h + curr_lay->parent_vessel->layers[n_layers - 1].h_h;
     double a_mid_h = curr_lay->a_mid_h;
-    lagrange = sigma[0];// + (a_mid_h - inner_radius_h) / (outer_radius_h - inner_radius_h) * curr_lay->parent_vessel->P[sn];
+    lagrange = sigma[0];
+    #ifndef ZERO_LAGRANGE_BC
+        lagrange += (a_mid_h - inner_radius_h) / (outer_radius_h - inner_radius_h) * curr_lay->parent_vessel->P[sn];
+    #endif
     for (int dir = 0; dir < 3; dir++) {
 
         //Accounting for active stress
